@@ -1,0 +1,4 @@
+interface:
+  display_name: "笔记管家"
+  short_description: "自动整理笔记：消化链接、归类归档、查重合并、Obsidian双链、人话改写"
+  default_prompt: "帮我整理这篇笔记/消化这个链接"

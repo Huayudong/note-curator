@@ -1,0 +1,68 @@
+# note-curator 配置文件
+# 首次使用：把本文件复制为 config.yaml 并填写，或直接运行
+#   python scripts/init_setup.py
+# config.yaml 优先于本文件被读取；config.yaml 含个人路径，已列入 .gitignore，不要提交。
+
+# ===== 知识库（vault）位置 =====
+# 你的笔记库根目录（Obsidian vault 的绝对路径）。留空则首次运行时由 skill 引导初始化；
+# 未配置 vault 也能用：skill 会直接生成笔记内容给你（不归档）。
+vault_path: ""
+
+# 笔记软件适配器：obsidian（将来可扩展 logseq / notion 等）
+adapter: "obsidian"
+
+# ===== 目录归类规则 =====
+# 按知识领域归类：domain 关键词命中 → 笔记归入 dir。下面是可直接改用的示例。
+# 未命中任何规则的内容落到 default_dir（收件箱，便于人工复核）。
+taxonomy:
+  default_dir: "00 Inbox"
+  rules:
+    - domain: ["编程", "代码", "算法", "数据结构", "数据库", "Git", "Linux", "操作系统", "计算机网络", "前端", "后端", "Python", "Java", "C++"]
+      dir: "编程"
+    - domain: ["AI", "人工智能", "大模型", "LLM", "机器学习", "深度学习", "神经网络", "prompt", "提示词", "RAG", "Agent", "NLP"]
+      dir: "AI"
+    - domain: ["读书", "文学", "写作", "小说", "散文", "历史"]
+      dir: "人文"
+    - domain: ["科普", "常识", "杂学", "冷知识"]
+      dir: "杂学"
+  # 若为 true，则每次归类后由用户确认目录；false 则自动归类。
+  confirm_dir: false
+
+# ===== frontmatter（笔记元数据，三字段铁律）=====
+# 只允许 author + created + tags；tags 最多 3 个，且每个都必须概括本篇文章内容。
+# 合并旧笔记时 frontmatter 一字不动；来源留痕由脚本写在正文文末「来源补充」行。
+frontmatter:
+  # 笔记作者署名（留空则首次初始化时询问）。
+  author: ""
+  # 是否自动根据领域/主题补 tag（仍受 ≤3 且概括本篇的约束）。
+  auto_tags: true
+
+# ===== 双链（Obsidian [[ ]]）策略 =====
+backlinks:
+  # title_first_then_concept：先与已有笔记标题做精确/包含匹配（高置信，直接建链）；
+  #   未命中的核心概念再做语义模糊匹配，置信度 >= min_confidence 才建链；
+  #   低于阈值的只在文末「待关联概念」列出建议。
+  mode: "title_first_then_concept"
+  min_confidence: 0.6
+
+# ===== 查重-合并 =====
+# 写入前先全库查重。命中同类旧笔记则合并；未命中则新建。
+dedup:
+  scope: "full_vault"               # 全库检索
+  similarity_threshold: 0.65        # 主题相似度 >= 此值视为命中，需合并；低于则新建
+  merge_flow: "preview_then_write"  # 先生成 diff 预览，用户确认后再写入旧笔记
+  # 合并原则：优先追加补充（append）；只有原笔记确有错误/过时才改写（edit）。
+  #   - append: 在小节末尾或文末追加新内容（默认，最常用）。重复内容会自动跳过。
+  #             追加片段按 references/writing-style.md 写，不是原文摘抄。
+  #   - edit  : 精确替换原文。仅当原内容确有错误（如事实性错误、笔误、明显过时）时使用，
+  #             不要为"换个更好说法"（含去 AI 味）而改写作者原有措辞。
+  default_op: "append"
+  conflict_handling: "flag_only"    # 新旧结论矛盾时优先在预览里标记，由用户裁决；确有定论时才用 edit 修正
+
+# ===== 写作风格（人话守则可调项，规则见 references/writing-style.md）=====
+style:
+  # 极客梗触发频率：0~1，约多大比例的笔记带一句极客梗；0 为关闭。
+  # 触发后若没有贴切的梗，宁可不用；不连续每篇都带。
+  geek_joke_probability: 0.33
+  # 是否允许对源文提出但未回答的问题做延伸回答（正文末「延伸思考」节，标注整理者延伸）。
+  allow_extension: true
