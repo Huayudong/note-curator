@@ -18,7 +18,13 @@ note-curator（笔记管家）是一个开源的通用 Agent skill：把网页�
 
 ### 1. 安装到你的 Agent
 
-把本项目克隆/复制到 Agent 的 skills 目录，保持目录名 `note-curator`：
+**方式一 · npx 一键安装（推荐）**：SKILL.md 是跨 Agent 的开放标准（Claude Code、Codex、Cursor、Copilot CLI 等 27+ Agent 支持），用 skills CLI 安装即可，它会自动检测你机器上装了哪些 Agent，把 skill 放进正确的目录：
+
+```bash
+npx skills add Huayudong/note-curator
+```
+
+**方式二 · git clone**：把本项目克隆/复制到 Agent 的 skills 目录，保持目录名 `note-curator`：
 
 ```bash
 git clone https://github.com/Huayudong/note-curator.git ~/.zcode/skills/note-curator   # ZCode / Codex
