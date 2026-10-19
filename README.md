@@ -120,6 +120,8 @@ python plugins/note-curator/skills/note-curator/scripts/style_check.py \
 
 The result is consistent / minor deviation / major deviation. A language mismatch between draft and profile is reported instead of comparing. This is a statistical check, not a guarantee of identical voice. It works best with 10+ notes or 5,000+ units from the same folder.
 
+Chinese profiles get extra depth: 把/被 construction density, four-character phrases, colloquialisms, 顿号 and 《》 punctuation, Latin-mixing density, and AI-tell blacklist hits (aligned with the writing guide) that are flagged directly when they appear in a draft but not in the profile.
+
 ## Configuration
 
 See [`config.example.yaml`](plugins/note-curator/skills/note-curator/config.example.yaml). The main options are `vault_path`, `taxonomy.rules`, `dedup`, `backlinks`, and `style`.

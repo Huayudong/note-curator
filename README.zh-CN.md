@@ -143,6 +143,8 @@ python plugins/note-curator/skills/note-curator/scripts/style_check.py \
 
 结论分「基本一致 / 轻微偏差 / 明显偏差」；草稿与画像语言不一致时直接报「语言不一致」，不做跨语言比较。这是统计检查，不保证完全复制作者；建议同一目录至少 10 篇或 5000 单位。
 
+中文画像有额外的深度特征：把/被句式密度、四字格、口语词、顿号与书名号、中英混排度，以及与写作守则黑名单同步的 AI 腔命中——画像语料里没有、草稿里出现时直接报偏差。
+
 ## 配置
 
 见 [`config.example.yaml`](plugins/note-curator/skills/note-curator/config.example.yaml)。主要配置项是 `vault_path`、`taxonomy.rules`、`dedup`、`backlinks` 和 `style`。

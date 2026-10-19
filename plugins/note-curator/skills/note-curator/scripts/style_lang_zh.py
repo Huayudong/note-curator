@@ -24,6 +24,7 @@ SENTENCE_SPLIT_RE = re.compile(r"(?<=[。！？!?])\s*|(?<=……)\s*|(?<=[.!?])
 
 PUNCTUATION_PATTERNS = {
     "逗号": r"[，,]",
+    "顿号": r"、",
     "句号": r"[。]",
     "问号": r"[？?]",
     "感叹号": r"[！!]",
@@ -65,6 +66,29 @@ RHETORIC_PATTERNS = {
     "枚举": r"首先|其次|最后|第一|第二|第三|一方面|另一方面",
     "个人经验": r"我以前|有一次|我自己|我遇到|我见过|在我看来|我的经验",
     "转折": r"但是|不过|然而|其实|话说回来",
+}
+
+# ---- 中文深化特征（Phase 2）----
+
+# 句式标记：把字句（处置式）/ 被动式。密度是中文语感的强信号。
+CONSTRUCTION_PATTERNS = {
+    "把字句": r"把(?![一把手就好话])",
+    "被动式": r"被|受到|遭到",
+}
+
+# 口语词：书面笔记里出现即带「人味」，AI 默认几乎不用。
+COLLOQUIAL_TERMS = ["咱们", "搞定", "折腾", "靠谱", "干脆", "索性",
+                    "拉倒", "犯不着", "回头", "咋"]
+
+# 四字格：成段的四字短语（成语、习语、四字组合），中文节奏感的核心特征。
+FOUR_CHAR_RE = re.compile(r"(?<![\u4e00-\u9fff])[\u4e00-\u9fff]{4}(?![\u4e00-\u9fff])")
+
+# AI 腔黑名单（统计口径，与 references/writing-style.md B 节保持同步）
+AI_TELL_PATTERNS = {
+    "套话提示语": r"值得注意的是|不难发现|众所周知|综上所述|总而言之|由此可见|以上就是|接下来我们",
+    "翻案腔": r"不是[^，。；]{1,12}而是|并非[^，。；]{1,12}而是|与其说[^，。]{1,12}不如说|看似[^，。]{1,12}实则",
+    "空洞强调": r"赋能|抓手|极大地|深度融合|底层逻辑|颗粒度",
+    "总结提示语": r"一句话总结|划重点|先说结论|核心是[:：]",
 }
 
 STOP_CHARS = set("的了是在和与也就都而及或着过吗呢吧啊呀哦嗯哈啦我你他她它这那有没不一个们")
@@ -151,4 +175,22 @@ def lexical(text):
         "unique": unique,
         "type_token_ratio": round(unique / chars, 4) if chars else 0.0,
         "hapax_ratio": round(hapax / unique, 4) if unique else 0.0,
+    }
+
+
+def metrics_extras(text, size):
+    """中文深化特征：句式、口语词、四字格、AI 腔、中英混排度。
+
+    size 为语料规模（字数）；各密度按每千字计。
+    """
+    from style_metrics import count_patterns, count_terms, per_1000
+
+    four_char = len(FOUR_CHAR_RE.findall(text))
+    latin_words = len(re.findall(r"[A-Za-z][A-Za-z0-9_+-]*", text))
+    return {
+        "zh_constructions": count_patterns(text, CONSTRUCTION_PATTERNS, size),
+        "zh_colloquial": count_terms(text, COLLOQUIAL_TERMS, size),
+        "zh_four_char": {"count": four_char, "per_1000": per_1000(four_char, size)},
+        "ai_tells": count_patterns(text, AI_TELL_PATTERNS, size),
+        "latin_per_1000": per_1000(latin_words, size),
     }

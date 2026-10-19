@@ -51,7 +51,9 @@ LABELS = {
         "cat": {"sentence": "句长", "paragraph": "段落", "punct": "标点",
                 "pronoun": "人称", "particle": "语气词", "hedge": "模糊限定",
                 "booster": "强调词", "connector": "连接词", "rhetoric": "修辞",
-                "lexical": "用词", "formatting": "排版", "starter": "句首"},
+                "lexical": "用词", "formatting": "排版", "starter": "句首",
+                "constructions": "句式", "colloquial": "口语词",
+                "four_char": "四字格", "ai": "AI 腔", "latin": "中英混排"},
         "verdict": {"ok": "基本一致", "minor": "轻微偏差", "major": "明显偏差",
                     "mismatch": "语言不一致"},
     },
@@ -72,7 +74,10 @@ LABELS = {
                 "particle": "tone particles", "hedge": "hedges",
                 "booster": "boosters", "connector": "connectors",
                 "rhetoric": "rhetoric", "lexical": "vocabulary",
-                "formatting": "formatting", "starter": "opener"},
+                "formatting": "formatting", "starter": "opener",
+                "constructions": "constructions", "colloquial": "colloquialisms",
+                "four_char": "four-char phrases", "ai": "AI tells",
+                "latin": "Latin mixing"},
         "verdict": {"ok": "consistent", "minor": "minor deviation",
                     "major": "major deviation", "mismatch": "language mismatch"},
     },
@@ -126,13 +131,15 @@ def count_patterns(text, patterns, size, flags=0):
             for name, pattern in patterns.items()}
 
 
-def count_terms(text, terms, size, pack):
-    """词条统计：英文按词边界正则，中文按字面 count。"""
+def count_terms(text, terms, size, pack=None):
+    """词条统计：带 pack 时按其 REGEX_TERMS 决定词边界或字面，无 pack 按字面。"""
+    regex = bool(pack is not None and getattr(pack, "REGEX_TERMS", False))
+    flags = getattr(pack, "PATTERN_FLAGS", 0) if pack is not None else 0
     result = {}
     for term in terms:
-        if pack.REGEX_TERMS:
+        if regex:
             pattern = r"\b" + re.escape(term) + r"\b"
-            item = _count_pattern(text, pattern, size, pack.PATTERN_FLAGS)
+            item = _count_pattern(text, pattern, size, flags)
         else:
             count = text.count(term)
             item = {"count": count, "per_1000": per_1000(count, size)}
@@ -213,6 +220,7 @@ def analyze_text(raw_text, lang=None, formatting_text=None):
         "ngrams": pack.top_fragments(text),
         "lexical": pack.lexical(text),
         "formatting": formatting_features(formatting_text if formatting_text is not None else raw_text),
+        **pack.metrics_extras(text, size),
     }
 
 
@@ -272,6 +280,7 @@ def _top_terms(term_dict, limit=8):
 def profile_to_markdown(profile):
     lang = profile.get("language", "zh")
     labels = LABELS[lang]
+    cat = labels["cat"]
     pack = get_pack(lang)
     metrics = profile["metrics"]
     sl = metrics["sentence_length"]
@@ -334,6 +343,35 @@ def profile_to_markdown(profile):
         lines.append("- %s: %d" % (name, data["count"]))
     lines.append("- Q: %d / !: %d" % (metrics["question_count"], metrics["exclamation_count"]))
     lines.append("")
+
+    # ---- 中文深化特征（仅 zh 画像有）----
+    if "zh_constructions" in metrics:
+        lines.append("## %s" % cat.get("constructions", "句式"))
+        for name, data in metrics["zh_constructions"].items():
+            lines.append("- %s: %d (%s)" % (name, data["count"], _fmt(data["per_1000"])))
+        four = metrics.get("zh_four_char", {})
+        lines.append("- %s: %d (%s)" % (cat.get("four_char", "四字格"),
+                                        four.get("count", 0), _fmt(four.get("per_1000", 0))))
+        lines.append("")
+        lines.append("## %s" % cat.get("colloquial", "口语词"))
+        items = _top_terms(metrics["zh_colloquial"])
+        if items:
+            lines.append("- " + "、".join("%s(%d)" % (name, count) for name, count, _ in items))
+        else:
+            lines.append("- %s" % labels["none_usage"])
+        lines.append("")
+        ai_items = _top_terms(metrics["ai_tells"])
+        lines.append("## %s" % cat.get("ai", "AI 腔"))
+        if ai_items:
+            lines.append("- " + "、".join("%s(%d)" % (name, count) for name, count, _ in ai_items)
+                         + ("（画像语料本身含有这些句式，写作时应避免再新增）"))
+        else:
+            lines.append("- 语料中未出现 AI 腔黑名单句式" if lang == "zh"
+                         else "no AI tells in samples")
+        lines.append("")
+        lines.append("## %s" % cat.get("latin", "中英混排"))
+        lines.append("- 英文词密度: %s / 千字" % _fmt(metrics.get("latin_per_1000", 0)))
+        lines.append("")
     lines.append("## %s" % labels["formatting"])
     formatting = metrics["formatting"]
     lines.append("- main heading: %s" % formatting["main_heading_level"])
@@ -474,6 +512,59 @@ def compare_profiles(profile, draft):
             _add(findings, cat["rhetoric"], severity,
                  "%s: %s, profile %s" % (name, _fmt(act), _fmt(exp)),
                  exp, act)
+
+    # ---- 中文深化特征（仅当画像与草稿都带这些字段时比较）----
+    for group_key, label_key in (("zh_constructions", "constructions"),
+                                 ("zh_colloquial", "colloquial")):
+        if group_key not in expected or group_key not in draft:
+            continue
+        exp = sum(item["per_1000"] for item in expected[group_key].values())
+        act = sum(item["per_1000"] for item in draft[group_key].values())
+        severity = _ratio_severity(exp, act)
+        if severity:
+            _add(findings, cat[label_key], severity,
+                 "%s: %s, profile %s" % (cat[label_key], _fmt(act), _fmt(exp)),
+                 round(exp, 2), round(act, 2))
+
+    if "zh_four_char" in expected and "zh_four_char" in draft:
+        exp = expected["zh_four_char"]["per_1000"]
+        act = draft["zh_four_char"]["per_1000"]
+        severity = _ratio_severity(exp, act)
+        if severity:
+            _add(findings, cat["four_char"], severity,
+                 "%s: %s, profile %s" % (cat["four_char"], _fmt(act), _fmt(exp)),
+                 exp, act)
+
+    if "ai_tells" in expected and "ai_tells" in draft:
+        for name, data in expected["ai_tells"].items():
+            exp_count = data.get("count", 0)
+            act_data = draft["ai_tells"].get(name, {})
+            act_count = act_data.get("count", 0)
+            if act_count == 0:
+                continue
+            if exp_count == 0:
+                # 画像里从不出现的 AI 腔，草稿里出现即偏差；多次出现按 major
+                severity = "major" if act_count >= 2 else "minor"
+            else:
+                severity = _ratio_severity(data.get("per_1000", 0),
+                                           act_data.get("per_1000", 0))
+                if severity is None and act_count > exp_count:
+                    severity = "minor"
+            if severity:
+                _add(findings, cat["ai"], severity,
+                     "%s: draft %d, profile %d" % (name, act_count, exp_count),
+                     exp_count, act_count)
+
+    if "latin_per_1000" in expected and "latin_per_1000" in draft:
+        exp = expected["latin_per_1000"]
+        act = draft["latin_per_1000"]
+        # 画像本身几乎不用英文术语时不比（中文全文名词写法同样成立）
+        if exp >= 5:
+            severity = _ratio_severity(exp, act)
+            if severity:
+                _add(findings, cat["latin"], severity,
+                     "%s: %s, profile %s" % (cat["latin"], _fmt(act), _fmt(exp)),
+                     exp, act)
 
     exp_ttr = expected["lexical"]["type_token_ratio"]
     act_ttr = draft["lexical"]["type_token_ratio"]

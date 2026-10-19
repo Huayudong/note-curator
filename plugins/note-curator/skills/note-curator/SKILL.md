@@ -113,6 +113,7 @@ python scripts/check_setup.py --json
 5. **生成草稿**：把正文写到 `_note.md`，先不要写盘。
 6. **文风自查**：`python scripts/style_check.py _note.md --profile "<步骤 2.5 的 profile.json>"`
    - 草稿语言与画像语言不一致时会直接报「语言不一致」：换对应语言的画像重建，不要跨语言比较。
+   - 中文画像会额外检查把/被句式、四字格、口语词、顿号书名号和中英混排度；**AI 腔黑名单命中**（与 `references/writing-style.md` B 节同步）在画像语料中没有、草稿中出现时直接报偏差，1 次 minor、2 次以上 major，命中必须改写后重跑。
    - 结论「明显偏差」：按提示调整句长、标点、连接词、排版，重跑一次。
    - 「基本一致」或「轻微偏差」：可以继续，并在预览里附一句检查结论。
 7. **写入**：`python scripts/write_note.py new --vault "<vault_path>" --dir "<目录>" --title "<中文标题>" --file _note.md`

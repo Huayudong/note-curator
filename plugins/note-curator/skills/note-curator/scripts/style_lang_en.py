@@ -174,3 +174,8 @@ def lexical(text):
         "type_token_ratio": round(unique / total, 4) if total else 0.0,
         "hapax_ratio": round(hapax / unique, 4) if unique else 0.0,
     }
+
+
+def metrics_extras(text, size):
+    """英文暂无深化特征；接口与中文包对齐，返回空。"""
+    return {}

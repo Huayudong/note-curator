@@ -23,6 +23,7 @@ SKILL = REPO_ROOT / "plugins" / "note-curator" / "skills" / "note-curator"
 SCRIPTS = SKILL / "scripts"
 ZH_EXAMPLE = SKILL / "examples" / "example-knowledge-note.md"
 EN_FIXTURES = REPO_ROOT / "tests" / "fixtures" / "en"
+ZH_FIXTURE = REPO_ROOT / "tests" / "fixtures" / "zh" / "git-rebase.md"
 
 FAILURES = []
 
@@ -107,6 +108,48 @@ def main():
         r = run([SCRIPTS / "style_check.py", bad, "--profile", en_profile, "--strict"])
         check("bad en draft flagged", "major deviation" in r.stdout and r.returncode == 1,
               "returncode=%s stdout=%s" % (r.returncode, r.stdout[-400:]))
+
+        # --- 6. 中文深化特征 ---
+        zh2_dir = tmp / "zh2"
+        r = run([SCRIPTS / "style_profile.py", "--vault", ZH_FIXTURE.parent.parent,
+                 "--files", "zh/git-rebase.md", "--profile-dir", zh2_dir, "--name", "zh2"])
+        check("zh deep profile exit 0", r.returncode == 0, r.stderr[-300:])
+        zh2_profile = zh2_dir / "zh2" / "profile.json"
+        zh2 = json.loads(zh2_profile.read_text(encoding="utf-8"))
+        m = zh2["metrics"]
+        check("zh constructions counted",
+              m["zh_constructions"]["把字句"]["count"] >= 3
+              and m["zh_constructions"]["被动式"]["count"] >= 1,
+              str(m["zh_constructions"]))
+        check("zh four-char counted", m["zh_four_char"]["count"] >= 3,
+              str(m["zh_four_char"]))
+        check("zh colloquial counted",
+              sum(v["count"] for v in m["zh_colloquial"].values()) >= 3,
+              str(m["zh_colloquial"]))
+        check("zh punctuation dunhao", m["punctuation"]["顿号"]["count"] >= 1,
+              str(m["punctuation"].get("顿号")))
+        check("zh latin mixing", m["latin_per_1000"] >= 5,
+              str(m["latin_per_1000"]))
+        check("zh profile ai-tell free",
+              sum(v["count"] for v in m["ai_tells"].values()) == 0,
+              str(m["ai_tells"]))
+
+        r = run([SCRIPTS / "style_check.py", ZH_FIXTURE, "--profile", zh2_profile,
+                 "--strict"])
+        check("zh deep self check consistent", "基本一致" in r.stdout and r.returncode == 0,
+              r.stdout[-300:])
+
+        ai_draft = tmp / "ai-draft.md"
+        ai_draft.write_text(
+            "# AI 腔草稿\n\n"
+            "值得注意的是，缓存策略的选择至关重要。综上所述，我们应该把缓存、限流、降级结合起来。"
+            "不难发现，这并不是一个技术问题，而是一个认知问题。由此可见，赋能业务的底层逻辑在于"
+            "深度融合。总而言之，这套方案能够极大地提升系统性能。首先，我们把数据放进缓存。"
+            "其次，我们设置过期时间。以上就是全部内容。\n", encoding="utf-8")
+        r = run([SCRIPTS / "style_check.py", ai_draft, "--profile", zh2_profile,
+                 "--strict"])
+        check("ai-tell draft flagged", "明显偏差" in r.stdout and r.returncode == 1
+              and "AI 腔" in r.stdout, r.stdout[-500:])
 
         # --- 5. 语言不匹配 ---
         r = run([SCRIPTS / "style_check.py", EN_FIXTURES / "cache-invalidation.md",
