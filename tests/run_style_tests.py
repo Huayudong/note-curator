@@ -151,6 +151,26 @@ def main():
         check("ai-tell draft flagged", "明显偏差" in r.stdout and r.returncode == 1
               and "AI 腔" in r.stdout, r.stdout[-500:])
 
+        # --- 7. 双语写作资源完整性 ---
+        refs = SKILL / "references"
+        zh_guide = (refs / "writing-style.md").read_text(encoding="utf-8")
+        en_guide = (refs / "writing-style.en.md").read_text(encoding="utf-8")
+        zh_tpl = (refs / "templates.md").read_text(encoding="utf-8")
+        en_tpl = (refs / "templates.en.md").read_text(encoding="utf-8")
+        check("zh guide has blacklist", "AI 腔黑名单" in zh_guide)
+        check("en guide has blacklist", "AI-tell blacklist" in en_guide)
+        check("en guide native tells", "not just X" in en_guide and "reveal dash" in en_guide.lower()
+              or "Reveal dash" in en_guide)
+        check("en guide marks extension", "Curator's extension" in en_guide)
+        check("zh templates knowledge+experiment", "知识类模板" in zh_tpl and "实验类模板" in zh_tpl)
+        check("en templates knowledge+experiment",
+              "Knowledge template" in en_tpl and "Experiment template" in en_tpl)
+        check("en templates marks extension", "Curator's extension" in en_tpl)
+        skill_md = (SKILL / "SKILL.md").read_text(encoding="utf-8")
+        check("SKILL routes by language",
+              "writing-style.en.md" in skill_md and "templates.en.md" in skill_md
+              and "不翻译" in skill_md)
+
         # --- 5. 语言不匹配 ---
         r = run([SCRIPTS / "style_check.py", EN_FIXTURES / "cache-invalidation.md",
                  "--profile", zh_profile, "--strict"])

@@ -5,7 +5,7 @@ description: 中文笔记自动整理与归档（通用 Agent skill，适用于�
 
 # 笔记管家（note-curator）
 
-把零散内容（网页链接 / 本地草稿）整理成结构化中文笔记，归档进知识库（默认 Obsidian）。核心特色：**写入前先全库查重，命中旧笔记就合并补充（优先追加、确有错误才改写），未命中才新建**；**新建前先学习已有笔记的排版风格并模仿**；笔记里的概念对已有笔记自动建双链；**一切落库文字遵守人话守则（`references/writing-style.md`）**。
+把零散内容（网页链接 / 本地草稿）整理成结构化中文或英文笔记，归档进知识库（默认 Obsidian）。核心特色：**写入前先全库查重，命中旧笔记就合并补充（优先追加、确有错误才改写），未命中才新建**；**新建前先学习已有笔记的排版风格并模仿**；笔记里的概念对已有笔记自动建双链；**一切落库文字遵守人话守则（中文 `references/writing-style.md` / 英文 `references/writing-style.en.md`）**。
 
 ## 第一原则
 
@@ -93,7 +93,7 @@ python scripts/check_setup.py --json
    - 旧笔记没有的新知识 → `## APPEND <小节>` 追加。
    - 旧笔记有但**写错了**（事实错误/笔误/过时）→ `## EDIT` 精确替换（OLD 必须逐字匹配原文）。
    - 一致的内容 → 不操作。
-   - **追加的片段是你重新写的中文**：按 `references/writing-style.md` 执行，不是把原文剪一段贴进去。
+   - **追加的片段是你重新写的**：写作守则按旧笔记语言选——中文用 `references/writing-style.md`，英文用 `references/writing-style.en.md`——不是把原文剪一段贴进去。
    - **追加片段也向步骤 2.5 的画像对齐**：如果旧笔记和目录画像差异明显，以旧笔记本身为主。
 2. 预览（不写盘）：`python scripts/write_note.py merge --vault "<vault_path>" --target "<旧笔记相对路径>" --patch _patch.md`
    - 脚本会自动做**重复检测**：已存在的 append 片段会标 `SKIP-DUP` 跳过，避免重复写入。
@@ -105,7 +105,10 @@ python scripts/check_setup.py --json
 1. **学习排版与文风（重要）**：
    - 排版：`python scripts/analyze_style.py --vault "<vault_path>" --dir "<目标目录>" --sample 8`，按摘要模仿 frontmatter 字段、标题层级、列表标记、强调用法、结构元素密度。
    - 文风：读取步骤 2.5 的 `profile.md` 和 `voice.md`；没有就按步骤 2.5 建立。写作时对齐语气、句长、用词、连接词、标点和段落节奏。
-2. **判别类型 + 按模板生成**：按 `references/templates.md` 判「知识类」或「实验类」，用对应模板生成中文正文；语言表达遵守 `references/writing-style.md`（段落优先、说人话、重点先行、去 AI 腔；上下文过渡与非术语句必须按中文语境改写/扩写，不是复制搬运）。frontmatter 只写三字段：`author`（取 config）、`created`（当天日期）、`tags`（最多 3 个，每个都必须概括本篇内容）。
+2. **判别类型 + 按语言选模板生成**：先按源文与目标目录的语言分流（以 `langdetect` 口径判断，与步骤 2.5 画像语言一致）：
+   - 中文 → `references/templates.md` + `references/writing-style.md`
+   - 英文 → `references/templates.en.md` + `references/writing-style.en.md`
+   用对应模板判「知识类/实验类」并生成正文；语言表达遵守所选守则（段落优先、说人话、重点先行、去 AI 腔；过渡与非术语句必须按目标语言语境重写，不是复制搬运）。标题、正文、tags 用该语言；**术语、数据、结论、引语、代码保持原文，不翻译**。frontmatter 只写三字段：`author`（取 config）、`created`（当天日期）、`tags`（最多 3 个，每个都必须概括本篇内容）。
 3. **建双链**：按 `references/obsidian-adapter.md` 第 3 节：
    - 用 `_index.json` 里的标题清单做词典，正文出现匹配的已有概念 → 写 `[[标题]]`（标题优先，置信度高）。
    - 标题未命中的核心概念，结合语义判断，置信度 ≥ `backlinks.min_confidence`（默认 0.6）才建链；否则放文末「待关联概念」。
@@ -120,9 +123,11 @@ python scripts/check_setup.py --json
 
 ## 参考文件（按需加载）
 
-- `references/writing-style.md` — **人话写作守则（写正文前必读）**：六条写作守则、AI 腔黑名单、落库前自查清单、极客梗与延伸思考机制。融合自 OpenAI《Model guidance》（GPT-6 Astra）「Personality and writing style」与 lieflat-less-ai-tone 的 11 条去 AI 味规则。
+- `references/writing-style.md` — **中文人话写作守则（写中文正文前必读）**：六条写作守则、AI 腔黑名单、落库前自查清单、极客梗与延伸思考机制。融合自 OpenAI《Model guidance》（GPT-6 Astra）「Personality and writing style」与 lieflat-less-ai-tone 的 11 条去 AI 味规则。
 - `references/obsidian-adapter.md` — Obsidian 双链 `[[ ]]` 规则、frontmatter 三字段铁律、目录约定、适配层扩展方式。
+- `references/writing-style.en.md` — 英文版守则（写英文正文前必读）：英文母语视角的六条守则、英文 AI 腔黑名单（reframe/summary prelude/reveal dash/hollow booster 等）与自查清单，机制与中文版对应。
 - `references/templates.md` — 知识类/实验类两套中文笔记模板 + 类型判别标准。
+- `references/templates.en.md` — 英文版知识类/实验类模板 + 类型判别标准。
 - `references/merge-rules.md` — 查重-合并规则（优先增有错才改、patch 的 APPEND/EDIT 格式、冲突处理、来源留痕）。
 - `references/style-profiling.md` — 文风画像的统计口径、定性补全方法、限制与隐私说明。
 - `config.example.yaml` — 全部可调配置（vault 路径、目录规则、查重阈值、双链策略、写作风格）。
@@ -157,5 +162,5 @@ python scripts/check_setup.py --json
 - **画像不是微调**：它是统计 + 定性描述，不能保证完全复制作者；样本不足或主题差异大时，先说明局限，不要把检查结果当成硬性判决。
 - **改写不越界**：过渡、铺垫、非术语表达按中文语境重写；术语、数据、结论、引语忠实于原文，观点归属不混淆；延伸内容明确标注「整理者延伸」。
 - **双链只对已有笔记建**，不对不存在的目标凭空建链；拿不准的进「待关联概念」。
-- **语言**：笔记正文、标题、目录均为中文。
+- **语言跟随源文与目标目录**：正文、标题、tags 用笔记语言（中文或英文），写作守则与模板按语言选取；术语、数据、结论、引语、代码保持原文不翻译。中文语境下按中文守则下更多功夫（把/被句式、四字格、口语词、AI 腔命中都在检查范围）。
 - **通用性**：笔记软件差异隔离在 `references/obsidian-adapter.md`；脚本通过配置的 `vault_path` 与 frontmatter 字段工作，不硬编码软件特性。网页抓取在脚本失败时回退到当前 Agent 的可用工具。
