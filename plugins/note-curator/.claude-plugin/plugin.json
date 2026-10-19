@@ -1,0 +1,18 @@
+{
+  "name": "note-curator",
+  "version": "1.0.0",
+  "description": "把网页链接或本地草稿整理成结构化中文笔记，查重合并后归档到 Obsidian 知识库。",
+  "author": {
+    "name": "Huayudong"
+  },
+  "homepage": "https://github.com/Huayudong/note-curator",
+  "repository": "https://github.com/Huayudong/note-curator",
+  "license": "MIT",
+  "keywords": [
+    "notes",
+    "obsidian",
+    "knowledge-base",
+    "chinese"
+  ],
+  "skills": "./skills"
+}
