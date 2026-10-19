@@ -6,15 +6,37 @@ note-curator（笔记管家）是一个开源的中文笔记整理 Agent skill�
 
 **整理笔记是为了给人看的，不是给计算机看的。** 这是本 skill 的第一原则：所有落库文字遵守一套「人话写作守则」，拒绝翻译腔和 AI 八股。
 
-## 功能特性
+## 功能点
 
-- **链接 / 草稿 → 中文笔记**：知识类、实验类两套模板，按内容自动分流
-- **落库前全库查重**：命中旧笔记就合并补充（优先追加、有错才改），不另建重复笔记
+### 输入与整理
+
+- **链接 / 草稿 → 中文笔记**：抓取正文或读取本地草稿，整理成结构化中文笔记
+- **知识类 / 实验类模板**：知识类偏概念解释，实验类偏设置、方法、数据与结论，按内容自动分流
+
+### 查重与合并
+
+- **落库前全库查重**：扫描知识库，先做关键词初筛，再由 Agent 结合正文做语义裁决
+- **命中合并**：优先追加新知识，只有事实错误、笔误或过时才改写；先预览 diff，确认后写入
+- **未命中新建**：按模板生成，不另建重复笔记
+
+### 文风与排版
+
+- **本地文风画像**：统计句长、标点、人称、语气词、连接词、句首习惯、修辞偏好和段落节奏；Agent 阅读样本后补全语气与用词描述
+- **写入前风格检查**：用 `style_check.py` 对比草稿与画像，提示句长、标点、用词和排版上的明显偏差
+- **排版自适应**：新建前学习同目录的 frontmatter、标题层级、列表标记、强调用法和结构元素密度
+- **人话写作守则**：段落优先、说人话、去 AI 腔；过渡句按中文语境重写，可选极客梗，延伸内容明确标注
+
+### 归档与双链
+
 - **Obsidian 双链**：概念自动 `[[]]` 到已有笔记，标题优先匹配 + 语义置信度兜底
-- **人话写作守则**：段落优先、说人话、去 AI 腔；过渡句按中文语境重写，可选极客梗，延伸思考明确标注
-- **frontmatter 三字段铁律**：只有 `author / created / tags`（tags ≤ 3 且必须概括本篇）；来源留痕写正文文末
-- **排版自适应**：新建前学习同目录已有笔记的排版风格，保持知识库风格一致
-- **零第三方依赖**：所有脚本只用 Python 标准库，Python 3.8+ 即可
+- **frontmatter 三字段**：只有 `author / created / tags`（tags ≤ 3 且概括本篇）
+- **来源留痕**：写在正文文末，不污染属性区
+
+### 工程与兼容
+
+- **零第三方依赖**：全部脚本只用 Python 标准库，Python 3.8+
+- **一套源码，三种插件**：ZCode、Claude Code、Codex / ChatGPT 共用 `plugins/note-curator/skills/note-curator/`
+- **独立 skill 可用**：任何支持 Agent Skills 的客户端都能直接使用
 
 ## 仓库结构
 
@@ -37,8 +59,8 @@ note-curator/
 │           └── note-curator/
 │               ├── SKILL.md          # 技能主流程
 │               ├── config.example.yaml
-│               ├── references/       # 写作守则、模板、合并规则、Obsidian 适配
-│               ├── scripts/          # 初始化 / 扫库 / 查重 / 学排版 / 抓网页 / 落库
+│               ├── references/       # 写作守则、模板、合并规则、文风画像、Obsidian 适配
+│               ├── scripts/          # 初始化 / 扫库 / 查重 / 学排版与文风 / 抓网页 / 落库
 │               ├── examples/         # 两篇示例笔记
 │               └── agents/openai.yaml
 ├── README.md
@@ -137,6 +159,38 @@ python plugins/note-curator/skills/note-curator/scripts/init_setup.py --vault "D
 - 「先查重，再决定是合并还是新建：……」→ 合并流程
 - 写入前会展示 diff 预览，确认后才落库
 
+## 文风学习（可选）
+
+插件不只模仿排版，也可以从同目录已有笔记学习文风：句长、标点、人称、语气词、连接词、句首习惯、修辞偏好和段落节奏。统计由脚本完成，语气、用词偏好等定性部分由 Agent 阅读样本后写入 `voice.md`。
+
+建立画像：
+
+```bash
+python plugins/note-curator/skills/note-curator/scripts/style_profile.py \
+  --vault "D:/Obsidian/MyVault" --dir "04 人工智能" --sample 20
+```
+
+默认写到 `~/.note-curator/style-profiles/<目录名>/`：
+
+- `profile.json`：机器可读的统计指标
+- `profile.md`：人可读的统计摘要
+- `voice.md`：定性画像，Agent 阅读样本后补全
+
+写入前检查：
+
+```bash
+python plugins/note-curator/skills/note-curator/scripts/style_check.py \
+  _note.md --profile "~/.note-curator/style-profiles/04-人工智能/profile.json"
+```
+
+结论分「基本一致 / 轻微偏差 / 明显偏差」。统计检查只覆盖可量化特征，不判断内容正确性，也不保证完全复制作者。
+
+注意：
+
+- 建议至少 10 篇或 5000 字同目录样本；默认取最近 20 篇。
+- 主题差异大时可能出现误报；以 `voice.md` 和实际阅读为准。
+- 画像和 samples 含个人内容，默认存放在 `~/.note-curator/`，不要提交到公开仓库。
+
 ## 配置速览
 
 | 配置项 | 说明 | 默认值 |
@@ -148,6 +202,10 @@ python plugins/note-curator/skills/note-curator/scripts/init_setup.py --vault "D
 | `backlinks.min_confidence` | 语义双链置信度下限 | 0.6 |
 | `style.geek_joke_probability` | 极客梗触发频率（0 为关闭） | 0.33 |
 | `style.allow_extension` | 允许延伸回答源文未解问题 | true |
+| `style.learn_from_vault` | 是否启用本地文风画像 | true |
+| `style.profile_sample` | 建立画像时取最近 N 篇 | 20 |
+| `style.profile_dir` | 画像保存目录 | `~/.note-curator/style-profiles` |
+| `style.check_before_write` | 写入前是否做风格偏差检查 | true |
 
 > `config.yaml` 默认生成在 `~/.note-curator/config.yaml`，包含本机路径与署名，已列入 `.gitignore`，请勿提交。
 
@@ -182,6 +240,7 @@ python plugins/note-curator/skills/note-curator/scripts/init_setup.py --vault "D
 - [OpenAI《Model guidance》（GPT-6 Astra）「Personality and writing style」](https://developers.openai.com/api/docs/guides/latest-model) —— 段落优先、说人话、去 slop 的生成侧指导
 - [lieflat-less-ai-tone](https://github.com/larashero3-dotcom/lieflat-less-ai-tone) —— 11 条基于人类 / AI 语料实测的去 AI 味规则
 - [KKKKhazix/human-writing](https://github.com/KKKKhazix/human-writing)（经 lieflat 间接参考）
+- [write-like-me](https://github.com/Hiro-Inagawa/write-like-me)（MIT）—— 文风画像与确定性检查器的结构参考；本实现按中文笔记重写了特征与规则
 
 ## License
 

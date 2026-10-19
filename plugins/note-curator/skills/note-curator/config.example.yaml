@@ -67,3 +67,12 @@ style:
   geek_joke_probability: 0.33
   # 是否允许对源文提出但未回答的问题做延伸回答（正文末「延伸思考」节，标注整理者延伸）。
   allow_extension: true
+  # 文风学习：从本地笔记统计句长、标点、人称、语气词、连接词等，
+  # 并由 Agent 阅读样本补全语气与用词画像。
+  learn_from_vault: true
+  # 建立画像时取最近 N 篇笔记作为样本（0 表示全部）。
+  profile_sample: 20
+  # 画像存放目录；默认 ~/.note-curator/style-profiles。
+  profile_dir: "~/.note-curator/style-profiles"
+  # 写入前是否运行 style_check.py 做一次风格偏差检查。
+  check_before_write: true
