@@ -17,18 +17,27 @@ description: 中文笔记自动整理与归档（通用 Agent skill，适用于�
 - 抓取网页：优先用自带脚本 `fetch_url.py`；脚本失败时（JS 渲染页/超时），改用**你当前 Agent 可用的网页抓取工具**（如 WebFetch、web_reader、playwright 等，名称因 Agent 而异——用你手上有的那个即可）。
 - 配置中不写死 Agent 专属工具名；遇到需要联网/渲染时，按当前环境选择等价工具。
 
-## 前置：配置检查与首次初始化
+## 前置：强制配置检查（每次任务先做）
 
-每次接到整理任务，先做一次轻量检查，再按三种情况分流：
+**接到整理任务后，第一步必须运行：**
 
-1. **已配置**：`<本skill目录>/config.yaml` 或 `~/.note-curator/config.yaml` 存在且 `vault_path` 非空 → 直接走主流程。
-2. **未配置，但用户想先看效果**（典型：只丢来一个链接说「整理一下」）→ **无 vault 模式**：跳过查重与落库，直接按模板 + 人话守则生成笔记全文输出给用户，结尾附一句「配置好知识库后我可以帮你直接归档，说『初始化笔记管家』就行」。不要连环追问配置，先给价值。
-3. **用户想完整使用**（明确说「存进知识库 / 归档 / 初始化」）→ 走**首次初始化**：
-   - 一次性问齐（给出建议默认值，让用户回车即可）：vault 路径、author 署名、目录规则用不用示例。
-   - 然后跑：`python scripts/init_setup.py --vault "<路径>" --author "<署名>"`（默认写入 `~/.note-curator/config.yaml`；如果技能目录里已有旧的 `config.yaml` 则沿用旧文件，也可以用 `--config <路径>` 显式指定。vault 目录还不存在时加 `--create-vault`；不带参数运行脚本则是交互式逐项询问）。
-   - 初始化完成后给一句确认，建议用户丢一篇内容试试。
+```bash
+python scripts/check_setup.py --json
+```
 
-初始化与配置要点：`init_setup.py` 从 `config.example.yaml` 生成个人配置（保留全部注释），默认写到 `~/.note-curator/config.yaml`；如果 `<本skill目录>/config.yaml` 已存在则沿用旧文件。读取配置时按「技能目录 `config.yaml` → 用户级 `~/.note-curator/config.yaml`」的顺序找第一个存在的文件。`config.yaml` 含个人路径，属个人文件。关键配置：`vault_path`（知识库绝对路径）、`taxonomy`（目录归类规则）、`dedup`（查重阈值与合并流程）、`backlinks`（双链策略）、`style`（人话守则可调项）。
+- `status == "ok"` → 进入主流程。
+- **其他任何状态 → 拦截，不进入整理流程：**
+  1. 不要抓正文、不要扫库、不要生成整篇笔记、不要写盘。
+  2. 把 `message` 和 `next` 用一两句话告诉用户，说明具体缺什么。
+  3. 一次性问齐必要信息（vault 路径、署名），给默认值；用户确认后运行：
+     `python scripts/init_setup.py --vault "<路径>" --author "<署名>"`
+     vault 不存在且用户同意新建时加 `--create-vault`。
+  4. 重新运行 `check_setup.py`，只有 `ok` 才继续。
+- **用户明确说「先看效果，不配置」**：只输出一小段预览（不超过约 300 字，或只给一个要点），标注「预览，未归档」；不要输出完整笔记。配置完成后才能完整整理和归档。
+- `vault_path` 为空、路径不存在、指向文件、`author` 为空，都按未配置处理；不要绕过，也不要自动改用别的目录。
+- 已经配置过但路径失效：先拦截，说明失效路径，让用户确认新路径；不要猜测新目录。
+
+初始化与配置要点：`init_setup.py` 从 `config.example.yaml` 生成个人配置（保留全部注释），默认写到 `~/.note-curator/config.yaml`；如果 `<本skill目录>/config.yaml` 已存在则沿用旧文件。`check_setup.py` 也按「技能目录 `config.yaml` → 用户级 `~/.note-curator/config.yaml`」的顺序查找。`config.yaml` 含个人路径，属个人文件。关键配置：`vault_path`（知识库绝对路径）、`taxonomy`（目录归类规则）、`dedup`（查重阈值与合并流程）、`backlinks`（双链策略）、`style`（人话守则可调项）。
 
 ## 主流程（按输入自动分流）
 
@@ -119,6 +128,7 @@ description: 中文笔记自动整理与归档（通用 Agent skill，适用于�
 
 | 脚本 | 作用 | 何时用 |
 |------|------|--------|
+| `scripts/check_setup.py` | 检查配置是否存在、vault 是否有效、署名是否已填；未就绪时阻止生成并给出下一步 | 每次整理任务开始前 |
 | `scripts/init_setup.py` | 首次初始化：从 config.example.yaml 生成个人配置（默认 `~/.note-curator/config.yaml`；兼容旧的技能目录 config.yaml），可顺带创建 vault 目录 | 首次使用或更换 vault 时 |
 | `scripts/scan_vault.py` | 扫描 vault，输出笔记索引（标题/路径/frontmatter/正文摘要） | 查重与建双链前，跑一次 |
 | `scripts/find_duplicates.py` | 对新笔记在全库做关键词初筛，返回 Top-N 候选 | 查重时，喂 `--index` 和 `--query` |
@@ -134,7 +144,7 @@ description: 中文笔记自动整理与归档（通用 Agent skill，适用于�
 ## 重要守则
 
 - **笔记给人看**：一切落库文字遵守 `references/writing-style.md`；这是第一原则，优先于模板的结构惯性。
-- **首次体验要轻**：未配置 vault 也能出笔记（无 vault 模式）；初始化问题一次问齐，给默认值，不连环追问。
+- **首次使用先配置**：每次任务先跑 `check_setup.py`；未配置或路径失效时拦截并引导，不生成整篇笔记。用户明确要求预览时只给短预览。
 - **查重先于新建**：每篇新笔记落库前都必须查重；命中旧笔记优先合并补充，不能另建重复笔记。
 - **合并优先增、有错才改**：默认 `append` 追加；只有原内容确有错误/过时才用 `edit` 改写，且不要为「换个说法」而改写作者原有措辞——包括不因去 AI 味而改写旧笔记。
 - **追加片段也是写作**：合并新增的内容按人话守则写成与旧笔记融为一体的中文，不是原文摘抄。

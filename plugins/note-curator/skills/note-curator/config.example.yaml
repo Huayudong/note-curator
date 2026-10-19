@@ -6,7 +6,7 @@
 
 # ===== 知识库（vault）位置 =====
 # 你的笔记库根目录（Obsidian vault 的绝对路径）。留空则首次运行时由 skill 引导初始化；
-# 未配置 vault 也能用：skill 会直接生成笔记内容给你（不归档）。
+# 未配置或路径失效时，skill 会先引导完成配置，不会直接把整篇笔记输出到会话。
 vault_path: ""
 
 # 笔记软件适配器：obsidian（将来可扩展 logseq / notion 等）
@@ -33,7 +33,7 @@ taxonomy:
 # 只允许 author + created + tags；tags 最多 3 个，且每个都必须概括本篇文章内容。
 # 合并旧笔记时 frontmatter 一字不动；来源留痕由脚本写在正文文末「来源补充」行。
 frontmatter:
-  # 笔记作者署名（留空则首次初始化时询问）。
+  # 笔记作者署名（留空时首次调用会拦截并要求补填）。
   author: ""
   # 是否自动根据领域/主题补 tag（仍受 ≤3 且概括本篇的约束）。
   auto_tags: true

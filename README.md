@@ -139,7 +139,9 @@ cp -r note-curator/plugins/note-curator/skills/note-curator ~/.agents/skills/not
 
 ## 首次初始化
 
-**方式 A · 对话式**：直接把链接或草稿交给 Agent，并说明要归档。首次使用会引导完成配置；未配置 vault 时也可以先输出笔记内容，不会卡在配置上。
+**方式 A · 对话式**：直接把链接或草稿交给 Agent。首次调用会先运行 `check_setup.py`；未配置 vault、路径失效或署名为空时，插件会先拦截并引导配置，不会把整篇笔记直接输出到会话。配置完成后才会抓正文、查重和归档。
+
+> 如果只想先看效果，明确说「只预览，不归档」；插件只给一小段预览，不会输出完整笔记。
 
 **方式 B · 命令式**：
 
@@ -148,6 +150,12 @@ python plugins/note-curator/skills/note-curator/scripts/init_setup.py --vault "D
 # vault 目录还不存在？加 --create-vault
 # 想逐项询问？不带参数直接运行脚本
 # 已经安装到 Agent 的话，在技能目录里运行 scripts/init_setup.py
+```
+
+随时检查配置是否就绪：
+
+```bash
+python plugins/note-curator/skills/note-curator/scripts/check_setup.py --json
 ```
 
 配置默认写入 `~/.note-curator/config.yaml`；如果技能目录里已有旧的 `config.yaml`，沿用旧文件；也可以用 `--config <路径>` 显式指定。插件升级或重装不会覆盖用户级配置。
