@@ -72,6 +72,8 @@ style:
   learn_from_vault: true
   # 建立画像时取最近 N 篇笔记作为样本（0 表示全部）。
   profile_sample: 20
+  # 画像语言：auto 自动检测（中文按字、英文按词），也可强制 zh / en。
+  language: auto
   # 画像存放目录；默认 ~/.note-curator/style-profiles。
   profile_dir: "~/.note-curator/style-profiles"
   # 写入前是否运行 style_check.py 做一次风格偏差检查。

@@ -102,14 +102,14 @@ The merge path appends new knowledge and edits only clear errors. The create pat
 
 ## Style learning
 
-Build a profile from recent notes in a folder:
+Build a profile from recent notes in a folder. Chinese and English are measured separately: Chinese profiles count characters, English profiles count words. Language is auto-detected per corpus and can be forced with `--lang zh|en`; drafts are only compared against same-language profiles.
 
 ```bash
 python plugins/note-curator/skills/note-curator/scripts/style_profile.py \
   --vault "D:/Obsidian/MyVault" --dir "04 AI" --sample 20
 ```
 
-This writes `profile.json`, `profile.md`, and a `voice.md` template to `~/.note-curator/style-profiles/<name>/`. The agent reads the samples and fills `voice.md` with observations about tone, sentence rhythm, vocabulary, paragraph flow, and punctuation.
+This writes `profile.json`, `profile.md`, and a `voice.md` template (in the profile's language) to `~/.note-curator/style-profiles/<name>/`. The agent reads the samples and fills `voice.md` with observations about tone, sentence rhythm, vocabulary, paragraph flow, and punctuation.
 
 Check a draft:
 
@@ -118,7 +118,7 @@ python plugins/note-curator/skills/note-curator/scripts/style_check.py \
   _note.md --profile "~/.note-curator/style-profiles/04-AI/profile.json"
 ```
 
-The result is consistent / minor deviation / major deviation (`基本一致` / `轻微偏差` / `明显偏差`). This is a statistical check, not a guarantee of identical voice. It works best with 10+ notes or 5,000+ characters from the same folder.
+The result is consistent / minor deviation / major deviation. A language mismatch between draft and profile is reported instead of comparing. This is a statistical check, not a guarantee of identical voice. It works best with 10+ notes or 5,000+ units from the same folder.
 
 ## Configuration
 

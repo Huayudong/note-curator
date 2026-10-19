@@ -1,24 +1,26 @@
 #!/usr/bin/env python3
 """
-style_metrics.py — note-curator 的中文文风统计与比较工具（共享实现）。
+style_metrics.py — note-curator 文风统计与比较的调度层。
 
-只做确定性的文本统计，不调用模型：
-- 句长、段落长度分布
-- 标点使用频率
-- 人称、语气词、模糊限定词、强调词、连接词
-- 句首习惯、高频字词片段
-- 修辞标记（举例、类比、枚举、个人经验、转折）
-- Markdown 排版特征
+职责：
+- Markdown 清洗、段落切分、排版统计等语言无关逻辑
+- 按语言选择语言包（style_lang_zh / style_lang_en）并调用其特征实现
+- 语料画像（analyze_corpus）、人可读摘要（profile_to_markdown）
+- 草稿与画像的比较（compare_profiles），只在同语言之间比较
 
-style_profile.py 用它建立画像，style_check.py 用它比较草稿和画像。
+语言包接口见 style_lang_zh.py / style_lang_en.py 顶部说明。
 只依赖 Python 标准库。
 """
 
 import datetime
-import math
 import re
-import statistics
-from collections import Counter
+
+import style_lang_en
+import style_lang_zh
+from langdetect import detect_language  # noqa: F401  语言检测的统一入口
+from style_util import per_1000, percentile, stats  # noqa: F401  共享数学工具
+
+PACKS = {"zh": style_lang_zh, "en": style_lang_en}
 
 FRONTMATTER_RE = re.compile(r"\A\s*---\s*\n.*?\n---\s*\n?", re.DOTALL)
 CODE_BLOCK_RE = re.compile(r"```[\s\S]*?```")
@@ -33,57 +35,58 @@ HEADING_RE = re.compile(r"^\s{0,3}#{1,6}\s+.*$", re.MULTILINE)
 BLOCKQUOTE_RE = re.compile(r"^\s*>\s?", re.MULTILINE)
 LIST_RE = re.compile(r"^\s*(?:[-*+]|\d+\.)\s+", re.MULTILINE)
 CHECKBOX_RE = re.compile(r"^\s*\[[ xX]\]\s*", re.MULTILINE)
-SENTENCE_SPLIT_RE = re.compile(
-    r"(?<=[。！？!?])\s*|(?<=……)\s*|(?<=[.!?])(?=\s)|\n+"
-)
 
-PRONOUN_PATTERNS = {
-    "我": r"我(?!们)",
-    "我们": r"我们",
-    "你": r"你(?!们)",
-    "你们": r"你们",
-    "他": r"他(?!们)",
-    "她": r"她(?!们)",
-    "它": r"它(?!们)",
-    "他们": r"他们",
-    "她们": r"她们",
-    "它们": r"它们",
-    "大家": r"大家",
-    "自己": r"自己",
+# 每种语言的展示文案：摘要标题、findings 分类、结论档位
+LABELS = {
+    "zh": {
+        "report_title": "文风统计画像",
+        "report_note": "这是确定性统计结果。语气、态度、用词偏好等定性部分，"
+                       "请 Agent 阅读 samples 和原文后写入同目录的 `voice.md`。",
+        "corpus": "语料", "files": "样本文件", "chars": "正文规模",
+        "samples": "取样片段", "sentence": "句长与段落", "punct": "标点（每千字）",
+        "voice": "人称与语气", "fragments": "高频片段", "starters": "句首习惯",
+        "rhetoric": "修辞与结构", "formatting": "排版", "sample_section": "样本片段",
+        "unit": "字", "none_usage": "样本中未出现明显用法",
+        "insufficient": "样本不足",
+        "cat": {"sentence": "句长", "paragraph": "段落", "punct": "标点",
+                "pronoun": "人称", "particle": "语气词", "hedge": "模糊限定",
+                "booster": "强调词", "connector": "连接词", "rhetoric": "修辞",
+                "lexical": "用词", "formatting": "排版", "starter": "句首"},
+        "verdict": {"ok": "基本一致", "minor": "轻微偏差", "major": "明显偏差",
+                    "mismatch": "语言不一致"},
+    },
+    "en": {
+        "report_title": "Voice profile (statistics)",
+        "report_note": "Deterministic statistics. Tone, attitude, and wording preferences "
+                       "should be written by the agent into `voice.md` after reading samples.",
+        "corpus": "Corpus", "files": "sample files", "chars": "body size",
+        "samples": "sampled passages", "sentence": "Sentence and paragraph length",
+        "punct": "Punctuation (per 1,000 units)", "voice": "Pronouns and tone",
+        "fragments": "Frequent phrases", "starters": "Sentence openers",
+        "rhetoric": "Rhetoric and structure", "formatting": "Formatting",
+        "sample_section": "Sample passages",
+        "unit": "words", "none_usage": "no notable usage in samples",
+        "insufficient": "not enough samples",
+        "cat": {"sentence": "sentence length", "paragraph": "paragraph",
+                "punct": "punctuation", "pronoun": "pronouns",
+                "particle": "tone particles", "hedge": "hedges",
+                "booster": "boosters", "connector": "connectors",
+                "rhetoric": "rhetoric", "lexical": "vocabulary",
+                "formatting": "formatting", "starter": "opener"},
+        "verdict": {"ok": "consistent", "minor": "minor deviation",
+                    "major": "major deviation", "mismatch": "language mismatch"},
+    },
 }
 
-PARTICLES = ["吧", "呢", "啊", "嘛", "呀", "哦", "嗯", "哈", "啦"]
-HEDGES = ["可能", "也许", "大概", "或许", "似乎", "看起来", "应该", "差不多",
-          "某种程度上", "不一定", "未必", "估计"]
-BOOSTERS = ["一定", "肯定", "确实", "明显", "显然", "绝对", "非常", "特别",
-             "尤其", "必须", "毫无疑问", "无疑"]
-CONNECTORS = ["但是", "不过", "然而", "所以", "因此", "因为", "其实", "说白了",
-              "换句话说", "也就是说", "另外", "此外", "总之", "反正", "于是", "然后"]
 
-RHETORIC_PATTERNS = {
-    "举例": r"比如|例如|举个例子|譬如|像是",
-    "类比": r"就像|好比|相当于|类似于|如同|宛如",
-    "枚举": r"首先|其次|最后|第一|第二|第三|一方面|另一方面",
-    "个人经验": r"我以前|有一次|我自己|我遇到|我见过|在我看来|我的经验",
-    "转折": r"但是|不过|然而|其实|话说回来",
-}
+def get_pack(lang):
+    pack = PACKS.get(lang)
+    if pack is None:
+        raise ValueError("unsupported language: %r (expected zh/en)" % lang)
+    return pack
 
-PUNCTUATION_PATTERNS = {
-    "逗号": r"[，,]",
-    "句号": r"[。]",
-    "问号": r"[？?]",
-    "感叹号": r"[！!]",
-    "冒号": r"[：:]",
-    "分号": r"[；;]",
-    "破折号": r"——|—|--",
-    "省略号": r"……|\.\.\.",
-    "括号": r"[（）()]",
-    "引号": r"[“”\"「」『』]",
-    "书名号": r"[《》]",
-}
 
-STOP_CHARS = set("的了是在和与也就都而及或着过吗呢吧啊呀哦嗯哈啦我你他她它这那有没不一个们")
-
+# ---------- 语言无关的 Markdown 清洗 ----------
 
 def clean_markdown(text):
     """去掉 frontmatter、代码、链接和 Markdown 标记，只留适合统计的正文。"""
@@ -111,101 +114,33 @@ def split_paragraphs(text):
     return [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()]
 
 
-def split_sentences(text):
-    """按中英文句末标点和换行切句，过滤过短碎片。"""
-    parts = SENTENCE_SPLIT_RE.split(text)
-    out = []
-    for part in parts:
-        part = part.strip().strip("“”\"'「」『』（）()【】[]，,。！？!?：:；; ")
-        if len(re.sub(r"\s+", "", part)) >= 2:
-            out.append(part)
-    return out
+# ---------- 通用统计工具（实现在 style_util.py） ----------
+
+def _count_pattern(text, pattern, size, flags):
+    count = len(re.findall(pattern, text, flags))
+    return {"count": count, "per_1000": per_1000(count, size)}
 
 
-def char_len(text):
-    return len(re.sub(r"\s+", "", text))
+def count_patterns(text, patterns, size, flags=0):
+    return {name: _count_pattern(text, pattern, size, flags)
+            for name, pattern in patterns.items()}
 
 
-def percentile(sorted_values, p):
-    if not sorted_values:
-        return 0.0
-    if len(sorted_values) == 1:
-        return float(sorted_values[0])
-    k = (len(sorted_values) - 1) * p
-    low = int(math.floor(k))
-    high = int(math.ceil(k))
-    if low == high:
-        return float(sorted_values[int(k)])
-    return float(sorted_values[low] * (high - k) + sorted_values[high] * (k - low))
-
-
-def stats(values):
-    values = [float(v) for v in values if v is not None]
-    if not values:
-        return {"count": 0, "mean": 0.0, "median": 0.0, "p25": 0.0,
-                "p75": 0.0, "std": 0.0, "min": 0.0, "max": 0.0}
-    ordered = sorted(values)
-    return {
-        "count": len(values),
-        "mean": round(statistics.mean(values), 2),
-        "median": round(statistics.median(values), 2),
-        "p25": round(percentile(ordered, 0.25), 2),
-        "p75": round(percentile(ordered, 0.75), 2),
-        "std": round(statistics.pstdev(values), 2) if len(values) > 1 else 0.0,
-        "min": round(min(values), 2),
-        "max": round(max(values), 2),
-    }
-
-
-def per_1000(count, chars):
-    return round(count / chars * 1000, 2) if chars else 0.0
-
-
-def count_patterns(text, patterns, chars=None):
-    chars = char_len(text) if chars is None else chars
-    result = {}
-    for name, pattern in patterns.items():
-        count = len(re.findall(pattern, text))
-        result[name] = {"count": count, "per_1000": per_1000(count, chars)}
-    return result
-
-
-def count_terms(text, terms, chars=None):
-    chars = char_len(text) if chars is None else chars
+def count_terms(text, terms, size, pack):
+    """词条统计：英文按词边界正则，中文按字面 count。"""
     result = {}
     for term in terms:
-        count = text.count(term)
-        result[term] = {"count": count, "per_1000": per_1000(count, chars)}
+        if pack.REGEX_TERMS:
+            pattern = r"\b" + re.escape(term) + r"\b"
+            item = _count_pattern(text, pattern, size, pack.PATTERN_FLAGS)
+        else:
+            count = text.count(term)
+            item = {"count": count, "per_1000": per_1000(count, size)}
+        result[term] = item
     return result
 
 
-def top_ngrams(text, n_min=2, n_max=4, top=20):
-    """按字符 n-gram 统计高频片段；中文没有分词依赖时，这是可用的近似。"""
-    runs = re.findall(r"[\u4e00-\u9fffA-Za-z0-9]+", text)
-    counter = Counter()
-    for run in runs:
-        if not re.search(r"[\u4e00-\u9fff]", run):
-            continue
-        for n in range(n_min, n_max + 1):
-            for i in range(len(run) - n + 1):
-                gram = run[i:i + n]
-                if all(ch in STOP_CHARS for ch in gram):
-                    continue
-                counter[gram] += 1
-    items = [(gram, count) for gram, count in counter.most_common(top * 3) if count >= 2][:top]
-    if not items:
-        items = counter.most_common(top)
-    return items
-
-
-def sentence_starters(sentences, top=12):
-    counter = Counter()
-    for sentence in sentences:
-        sentence = sentence.strip("“”\"'「」『』（）()【】[]，,。！？!?：:；; ")
-        if len(sentence) >= 2:
-            counter[sentence[:4]] += 1
-    return counter.most_common(top)
-
+# ---------- 排版统计（语言无关，键为中性 id） ----------
 
 def formatting_features(raw_text):
     text = HTML_COMMENT_RE.sub("", raw_text)
@@ -217,54 +152,50 @@ def formatting_features(raw_text):
         if count:
             heading_levels["H%d" % level] = count
     counts = {
-        "标题": sum(heading_levels.values()),
-        "无序列表": len(re.findall(r"^\s*[-*+]\s+", text, re.MULTILINE)),
-        "有序列表": len(re.findall(r"^\s*\d+\.\s+", text, re.MULTILINE)),
-        "加粗": len(re.findall(r"\*\*[^*]+\*\*", text)),
-        "斜体": len(re.findall(r"(?<!\*)\*[^*]+\*(?!\*)", text)),
-        "高亮": len(re.findall(r"==[^=]+==", text)),
-        "引用块": len(re.findall(r"^\s*>\s?", text, re.MULTILINE)),
-        "表格行": len(re.findall(r"^\s*\|.*\|\s*$", text, re.MULTILINE)),
-        "代码块": len(re.findall(r"```", text)) // 2,
-        "双链": len(re.findall(r"\[\[[^\]]+\]\]", text)),
-        "行内代码": len(re.findall(r"`[^`\n]+`", text)),
+        "heading": sum(heading_levels.values()),
+        "bullet_list": len(re.findall(r"^\s*[-*+]\s+", text, re.MULTILINE)),
+        "ordered_list": len(re.findall(r"^\s*\d+\.\s+", text, re.MULTILINE)),
+        "bold": len(re.findall(r"\*\*[^*]+\*\*", text)),
+        "italic": len(re.findall(r"(?<!\*)\*[^*]+\*(?!\*)", text)),
+        "highlight": len(re.findall(r"==[^=]+==", text)),
+        "quote": len(re.findall(r"^\s*>\s?", text, re.MULTILINE)),
+        "table_row": len(re.findall(r"^\s*\|.*\|\s*$", text, re.MULTILINE)),
+        "code_block": len(re.findall(r"```", text)) // 2,
+        "wikilink": len(re.findall(r"\[\[[^\]]+\]\]", text)),
+        "inline_code": len(re.findall(r"`[^`\n]+`", text)),
     }
-    main_heading = max(heading_levels, key=heading_levels.get) if heading_levels else "无"
-    return {
-        "heading_levels": heading_levels,
-        "main_heading_level": main_heading,
-        "counts": counts,
-    }
+    main_heading = max(heading_levels, key=heading_levels.get) if heading_levels else "none"
+    return {"heading_levels": heading_levels, "main_heading_level": main_heading,
+            "counts": counts}
 
 
-def analyze_text(raw_text, formatting_text=None):
+# ---------- 单篇分析 ----------
+
+def analyze_text(raw_text, lang=None, formatting_text=None):
+    """统计一篇/一段合并文本。lang 为 None 时自动检测。"""
     text = clean_markdown(raw_text)
-    sentences = split_sentences(text)
+    if lang is None:
+        lang = detect_language(text)
+    pack = get_pack(lang)
+
+    sentences = pack.split_sentences(text)
     paragraphs = split_paragraphs(text)
-    chars = char_len(text)
-    sentence_lengths = [char_len(s) for s in sentences]
-    paragraph_lengths = [char_len(p) for p in paragraphs]
+    size = pack.corpus_size(text)
+    sentence_lengths = [pack.unit_len(s) for s in sentences]
+    paragraph_lengths = [pack.unit_len(p) for p in paragraphs]
 
-    punctuation = count_patterns(text, PUNCTUATION_PATTERNS, chars)
-    pronouns = count_patterns(text, PRONOUN_PATTERNS, chars)
-    particles = count_terms(text, PARTICLES, chars)
-    hedges = count_terms(text, HEDGES, chars)
-    boosters = count_terms(text, BOOSTERS, chars)
-    connectors = count_terms(text, CONNECTORS, chars)
-    rhetoric = count_patterns(text, RHETORIC_PATTERNS, chars)
-
-    unique_chars = len(set(re.sub(r"\s+", "", text)))
-    char_counts = Counter(re.sub(r"\s+", "", text))
-    hapax = sum(1 for count in char_counts.values() if count == 1)
-    lexical = {
-        "chars": chars,
-        "unique_chars": unique_chars,
-        "type_token_ratio": round(unique_chars / chars, 4) if chars else 0.0,
-        "hapax_ratio": round(hapax / unique_chars, 4) if unique_chars else 0.0,
-    }
+    punctuation = count_patterns(text, pack.PUNCTUATION_PATTERNS, size, pack.PATTERN_FLAGS)
+    pronouns = count_patterns(text, pack.PRONOUN_PATTERNS, size, pack.PATTERN_FLAGS)
+    particles = count_terms(text, pack.PARTICLES, size, pack)
+    hedges = count_terms(text, pack.HEDGES, size, pack)
+    boosters = count_terms(text, pack.BOOSTERS, size, pack)
+    connectors = count_terms(text, pack.CONNECTORS, size, pack)
+    rhetoric = count_patterns(text, pack.RHETORIC_PATTERNS, size, pack.PATTERN_FLAGS)
 
     return {
-        "chars": chars,
+        "language": lang,
+        "unit": pack.UNIT,
+        "chars": size,  # 兼容字段：语言对应的计量规模（zh=字数，en=词数）
         "sentence_count": len(sentences),
         "paragraph_count": len(paragraphs),
         "sentence_length": stats(sentence_lengths),
@@ -276,17 +207,19 @@ def analyze_text(raw_text, formatting_text=None):
         "boosters": boosters,
         "connectors": connectors,
         "rhetoric": rhetoric,
-        "question_count": punctuation["问号"]["count"],
-        "exclamation_count": punctuation["感叹号"]["count"],
-        "sentence_starters": sentence_starters(sentences),
-        "ngrams": top_ngrams(text),
-        "lexical": lexical,
+        "question_count": punctuation.get(pack.QUESTION_KEY, {}).get("count", 0),
+        "exclamation_count": punctuation.get(pack.EXCLAMATION_KEY, {}).get("count", 0),
+        "sentence_starters": pack.starters(sentences),
+        "ngrams": pack.top_fragments(text),
+        "lexical": pack.lexical(text),
         "formatting": formatting_features(formatting_text if formatting_text is not None else raw_text),
     }
 
 
-def analyze_corpus(files, max_samples=5):
-    """files: [Path]；返回可序列化的画像字典。"""
+# ---------- 语料画像 ----------
+
+def analyze_corpus(files, max_samples=5, lang="auto"):
+    """files: [Path]；lang: auto/zh/en。返回可序列化的画像字典。"""
     raw_texts = []
     samples = []
     for path in files:
@@ -304,9 +237,13 @@ def analyze_corpus(files, max_samples=5):
 
     combined_raw = "\n\n".join(raw_texts)
     combined_clean = "\n\n".join(clean_markdown(raw) for raw in raw_texts)
-    metrics = analyze_text(combined_clean, formatting_text=combined_raw)
+    if lang == "auto":
+        lang = detect_language(combined_clean)
+    metrics = analyze_text(combined_clean, lang=lang, formatting_text=combined_raw)
     return {
-        "profile_version": 1,
+        "profile_version": 2,
+        "language": lang,
+        "unit": metrics["unit"],
         "generated_at": datetime.datetime.now().isoformat(timespec="seconds"),
         "corpus": {
             "file_count": len(raw_texts),
@@ -316,6 +253,8 @@ def analyze_corpus(files, max_samples=5):
         "samples": samples,
     }
 
+
+# ---------- 人可读摘要 ----------
 
 def _fmt(value):
     if isinstance(value, float):
@@ -331,85 +270,90 @@ def _top_terms(term_dict, limit=8):
 
 
 def profile_to_markdown(profile):
+    lang = profile.get("language", "zh")
+    labels = LABELS[lang]
+    pack = get_pack(lang)
     metrics = profile["metrics"]
     sl = metrics["sentence_length"]
     pl = metrics["paragraph_length"]
+    unit = labels["unit"]
     lines = []
-    lines.append("# 文风统计画像")
+    lines.append("# %s" % labels["report_title"])
     lines.append("")
-    lines.append("> 这是确定性统计结果。语气、态度、用词偏好等定性部分，"
-                 "请 Agent 阅读 samples 和原文后写入同目录的 `voice.md`。")
+    lines.append("> %s" % labels["report_note"])
     lines.append("")
-    lines.append("## 语料")
-    lines.append("- 样本文件：%d 篇" % profile["corpus"]["file_count"])
-    lines.append("- 正文规模：%d 字" % profile["corpus"]["total_chars"])
+    lines.append("## %s" % labels["corpus"])
+    lines.append("- %s: %d" % (labels["files"], profile["corpus"]["file_count"]))
+    lines.append("- %s: %d %s" % (labels["chars"], profile["corpus"]["total_chars"], unit))
     if profile.get("samples"):
-        lines.append("- 取样片段：%d 段" % len(profile["samples"]))
+        lines.append("- %s: %d" % (labels["samples"], len(profile["samples"])))
     lines.append("")
-    lines.append("## 句长与段落")
-    lines.append("- 句长：平均 %s 字，中位数 %s，P25 %s，P75 %s，标准差 %s"
-                 % (_fmt(sl["mean"]), _fmt(sl["median"]), _fmt(sl["p25"]),
-                    _fmt(sl["p75"]), _fmt(sl["std"])))
-    lines.append("- 句长范围：%s–%s 字，共 %d 句"
-                 % (_fmt(sl["min"]), _fmt(sl["max"]), sl["count"]))
-    lines.append("- 段落：平均 %s 字，中位数 %s，P75 %s，共 %d 段"
-                 % (_fmt(pl["mean"]), _fmt(pl["median"]), _fmt(pl["p75"]),
-                    pl["count"]))
+    lines.append("## %s" % labels["sentence"])
+    lines.append("- %s: %s / %s / %s / %s / %s" % (
+        labels["cat"]["sentence"], _fmt(sl["mean"]), _fmt(sl["median"]),
+        _fmt(sl["p25"]), _fmt(sl["p75"]), _fmt(sl["std"])))
+    lines.append("- range: %s-%s %s, n=%d" % (_fmt(sl["min"]), _fmt(sl["max"]), unit, sl["count"]))
+    lines.append("- %s: %s / %s / %s, n=%d" % (
+        labels["cat"]["paragraph"], _fmt(pl["mean"]), _fmt(pl["median"]),
+        _fmt(pl["p75"]), pl["count"]))
     lines.append("")
-    lines.append("## 标点（每千字）")
+    lines.append("## %s" % labels["punct"])
     for name, data in metrics["punctuation"].items():
-        lines.append("- %s：%d 次（%s‰）" % (name, data["count"], _fmt(data["per_1000"])))
+        lines.append("- %s: %d (%s)" % (name, data["count"], _fmt(data["per_1000"])))
     lines.append("")
-    lines.append("## 人称与语气")
-    for label, data in [("人称", metrics["pronouns"]),
-                        ("语气词", metrics["particles"]),
-                        ("模糊限定", metrics["hedges"]),
-                        ("强调词", metrics["boosters"]),
-                        ("连接词", metrics["connectors"])]:
+    lines.append("## %s" % labels["voice"])
+    groups = [(labels["cat"]["pronoun"], metrics["pronouns"]),
+              (labels["cat"]["particle"], metrics["particles"]),
+              (labels["cat"]["hedge"], metrics["hedges"]),
+              (labels["cat"]["booster"], metrics["boosters"]),
+              (labels["cat"]["connector"], metrics["connectors"])]
+    for label, data in groups:
         items = _top_terms(data)
         if items:
-            text = "、".join("%s(%d)" % (name, count) for name, count, _ in items)
-            lines.append("- %s：%s" % (label, text))
+            lines.append("- %s: %s" % (label, "、".join(
+                "%s(%d)" % (name, count) for name, count, _ in items)))
         else:
-            lines.append("- %s：样本中未出现明显用法" % label)
+            lines.append("- %s: %s" % (label, labels["none_usage"]))
     lines.append("")
-    lines.append("## 高频片段（字符 n-gram）")
+    lines.append("## %s" % labels["fragments"])
     if metrics["ngrams"]:
         lines.append("- " + "、".join("%s(%d)" % (gram, count)
                                      for gram, count in metrics["ngrams"][:15]))
     else:
-        lines.append("- 样本不足，未提取到重复片段")
+        lines.append("- %s" % labels["insufficient"])
     lines.append("")
-    lines.append("## 句首习惯")
+    lines.append("## %s" % labels["starters"])
     if metrics["sentence_starters"]:
         lines.append("- " + "、".join("%s(%d)" % (starter, count)
                                      for starter, count in metrics["sentence_starters"][:12]))
     else:
-        lines.append("- 样本不足")
+        lines.append("- %s" % labels["insufficient"])
     lines.append("")
-    lines.append("## 修辞与结构")
+    lines.append("## %s" % labels["rhetoric"])
     for name, data in metrics["rhetoric"].items():
-        lines.append("- %s：%d 次" % (name, data["count"]))
-    lines.append("- 问句：%d 次；感叹句：%d 次"
-                 % (metrics["question_count"], metrics["exclamation_count"]))
+        lines.append("- %s: %d" % (name, data["count"]))
+    lines.append("- Q: %d / !: %d" % (metrics["question_count"], metrics["exclamation_count"]))
     lines.append("")
-    lines.append("## 排版")
+    lines.append("## %s" % labels["formatting"])
     formatting = metrics["formatting"]
-    lines.append("- 主标题层级：%s" % formatting["main_heading_level"])
+    lines.append("- main heading: %s" % formatting["main_heading_level"])
+    fmt_labels = pack.FMT_LABELS
     for name, count in formatting["counts"].items():
         if count:
-            lines.append("- %s：%d" % (name, count))
+            lines.append("- %s: %d" % (fmt_labels.get(name, name), count))
     lines.append("")
     if profile.get("samples"):
-        lines.append("## 样本片段")
+        lines.append("## %s" % labels["sample_section"])
         for sample in profile["samples"]:
             lines.append("")
-            lines.append("来源：`%s`" % sample["source"])
+            lines.append("source: `%s`" % sample["source"])
             lines.append("")
             lines.append("> " + sample["text"].replace("\n", " "))
     lines.append("")
     return "\n".join(lines)
 
+
+# ---------- 草稿与画像比较 ----------
 
 def _add(findings, category, severity, message, expected, actual):
     findings.append({
@@ -424,7 +368,6 @@ def _add(findings, category, severity, message, expected, actual):
 def _ratio_severity(expected, actual):
     if expected > 0:
         ratio = actual / expected
-        # 小样本下 1 次和 2 次的差异不值得报警；先排除接近值。
         if 0.75 <= ratio <= 1.33:
             return None
     # 低频特征缺失不一定是文风问题；只在草稿明显多用了它时提示。
@@ -443,30 +386,55 @@ def _ratio_severity(expected, actual):
 
 
 def compare_profiles(profile, draft):
-    """把草稿统计与画像比较，返回 findings 和 verdict。"""
+    """把草稿统计与画像比较。语言不一致时直接给出 mismatch 结论。"""
+    profile_lang = profile.get("language", "zh")
+    draft_lang = draft.get("language", "zh")
+    labels = LABELS[profile_lang]
+    cat = labels["cat"]
+
+    if profile_lang != draft_lang:
+        findings = [{
+            "category": cat["lexical"],
+            "severity": "major",
+            "message": "profile is %s but draft is %s; rebuild the profile for this language"
+                       % (profile_lang, draft_lang)
+                       if profile_lang == "en" else
+                       "画像是 %s，草稿是 %s；请为该语言单独建立画像" % (profile_lang, draft_lang),
+            "expected": profile_lang,
+            "actual": draft_lang,
+        }]
+        return {"verdict": labels["verdict"]["mismatch"],
+                "counts": {"major": 1, "minor": 0, "info": 0},
+                "findings": findings}
+
     expected = profile["metrics"]
     findings = []
+    is_en = profile_lang == "en"
 
-    for key, label in [("mean", "平均句长"), ("median", "句长中位数"), ("p75", "句长 P75")]:
+    def unit_of(value):
+        return "%s %s" % (_fmt(value), labels["unit"])
+
+    for key in ("mean", "median", "p75"):
+        label = cat["sentence"] + " " + key
         exp = expected["sentence_length"][key]
         act = draft["sentence_length"][key]
         if key == "mean" and expected["sentence_length"]["std"] > 0:
             z = abs(act - exp) / expected["sentence_length"]["std"]
             if z >= 2.5:
-                _add(findings, "句长", "major",
-                     "%s：%s 字，画像为 %s±%s 字（偏差较大）"
-                     % (label, _fmt(act), _fmt(exp), _fmt(expected["sentence_length"]["std"])),
+                _add(findings, cat["sentence"], "major",
+                     "%s: %s, profile %s±%s" % (label, unit_of(act), unit_of(exp),
+                                                _fmt(expected["sentence_length"]["std"])),
                      exp, act)
             elif z >= 1.5:
-                _add(findings, "句长", "minor",
-                     "%s：%s 字，画像为 %s±%s 字"
-                     % (label, _fmt(act), _fmt(exp), _fmt(expected["sentence_length"]["std"])),
+                _add(findings, cat["sentence"], "minor",
+                     "%s: %s, profile %s±%s" % (label, unit_of(act), unit_of(exp),
+                                                _fmt(expected["sentence_length"]["std"])),
                      exp, act)
         elif exp > 0:
             severity = _ratio_severity(exp, act)
             if severity:
-                _add(findings, "句长", severity,
-                     "%s：%s 字，画像为 %s 字" % (label, _fmt(act), _fmt(exp)),
+                _add(findings, cat["sentence"], severity,
+                     "%s: %s, profile %s" % (label, unit_of(act), unit_of(exp)),
                      exp, act)
 
     exp_pl = expected["paragraph_length"]["mean"]
@@ -474,70 +442,72 @@ def compare_profiles(profile, draft):
     if exp_pl > 0:
         severity = _ratio_severity(exp_pl, act_pl)
         if severity:
-            _add(findings, "段落", severity,
-                 "平均段落长度为 %s 字，画像为 %s 字" % (_fmt(act_pl), _fmt(exp_pl)),
+            _add(findings, cat["paragraph"], severity,
+                 "%s mean: %s, profile %s" % (cat["paragraph"], unit_of(act_pl), unit_of(exp_pl)),
                  exp_pl, act_pl)
 
-    for name in ["逗号", "句号", "问号", "感叹号", "冒号", "分号", "破折号",
-                 "省略号", "括号", "引号"]:
-        exp = expected["punctuation"].get(name, {}).get("per_1000", 0)
+    for name, data in expected["punctuation"].items():
+        exp = data.get("per_1000", 0)
         act = draft["punctuation"].get(name, {}).get("per_1000", 0)
         severity = _ratio_severity(exp, act)
         if severity:
-            _add(findings, "标点", severity,
-                 "%s使用为 %s‰，画像为 %s‰" % (name, _fmt(act), _fmt(exp)),
+            _add(findings, cat["punct"], severity,
+                 "%s: %s, profile %s" % (name, _fmt(act), _fmt(exp)),
                  exp, act)
 
-    for label, key in [("人称", "pronouns"), ("语气词", "particles"),
-                       ("模糊限定", "hedges"), ("强调词", "boosters"),
-                       ("连接词", "connectors")]:
+    for label, key in [(cat["pronoun"], "pronouns"), (cat["particle"], "particles"),
+                       (cat["hedge"], "hedges"), (cat["booster"], "boosters"),
+                       (cat["connector"], "connectors")]:
         exp = sum(item["per_1000"] for item in expected[key].values())
         act = sum(item["per_1000"] for item in draft[key].values())
         severity = _ratio_severity(exp, act)
         if severity:
             _add(findings, label, severity,
-                 "%s密度为 %s‰，画像为 %s‰" % (label, _fmt(act), _fmt(exp)),
+                 "%s: %s, profile %s" % (label, _fmt(act), _fmt(exp)),
                  round(exp, 2), round(act, 2))
 
-    for name in ["举例", "类比", "枚举", "个人经验", "转折"]:
-        exp = expected["rhetoric"].get(name, {}).get("per_1000", 0)
+    for name, data in expected["rhetoric"].items():
+        exp = data.get("per_1000", 0)
         act = draft["rhetoric"].get(name, {}).get("per_1000", 0)
         severity = _ratio_severity(exp, act)
         if severity:
-            _add(findings, "修辞", severity,
-                 "「%s」密度为 %s‰，画像为 %s‰" % (name, _fmt(act), _fmt(exp)),
+            _add(findings, cat["rhetoric"], severity,
+                 "%s: %s, profile %s" % (name, _fmt(act), _fmt(exp)),
                  exp, act)
 
     exp_ttr = expected["lexical"]["type_token_ratio"]
     act_ttr = draft["lexical"]["type_token_ratio"]
     if exp_ttr > 0 and abs(act_ttr - exp_ttr) >= 0.12:
-        _add(findings, "用词", "minor",
-             "字符丰富度为 %s，画像为 %s" % (_fmt(act_ttr), _fmt(exp_ttr)),
+        _add(findings, cat["lexical"], "minor",
+             "%s TTR: %s, profile %s" % (cat["lexical"], _fmt(act_ttr), _fmt(exp_ttr)),
              exp_ttr, act_ttr)
 
-    for name in ["标题", "无序列表", "有序列表", "加粗", "引用块", "表格行", "双链"]:
+    fmt_labels = get_pack(profile_lang).FMT_LABELS
+    for name in expected["formatting"]["counts"]:
         exp = expected["formatting"]["counts"].get(name, 0) / max(expected["chars"], 1) * 1000
         act = draft["formatting"]["counts"].get(name, 0) / max(draft["chars"], 1) * 1000
         severity = _ratio_severity(exp, act)
         if severity:
-            _add(findings, "排版", severity,
-                 "%s密度为 %s‰，画像为 %s‰" % (name, _fmt(act), _fmt(exp)),
+            _add(findings, cat["formatting"], severity,
+                 "%s: %s, profile %s" % (fmt_labels.get(name, name), _fmt(act), _fmt(exp)),
                  round(exp, 2), round(act, 2))
 
     expected_starters = {item[0] for item in expected["sentence_starters"][:6]}
     actual_starters = {item[0] for item in draft["sentence_starters"][:6]}
     if expected_starters and actual_starters and not (expected_starters & actual_starters):
-        _add(findings, "句首", "info",
-             "句首习惯与画像没有重合；如果内容主题差异较大，可以忽略", 0, 0)
+        _add(findings, cat["starter"], "info",
+             "openers share nothing with the profile; fine when topics differ" if is_en
+             else "句首习惯与画像没有重合；如果内容主题差异较大，可以忽略",
+             0, 0)
 
     major = sum(1 for item in findings if item["severity"] == "major")
     minor = sum(1 for item in findings if item["severity"] == "minor")
     if major >= 3:
-        verdict = "明显偏差"
+        verdict = labels["verdict"]["major"]
     elif major >= 1 or minor >= 3:
-        verdict = "轻微偏差"
+        verdict = labels["verdict"]["minor"]
     else:
-        verdict = "基本一致"
+        verdict = labels["verdict"]["ok"]
     severity_order = {"major": 0, "minor": 1, "info": 2}
     findings.sort(key=lambda item: severity_order.get(item["severity"], 3))
     return {

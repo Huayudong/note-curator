@@ -121,7 +121,7 @@ python plugins/note-curator/skills/note-curator/scripts/init_setup.py \
 
 ## 文风学习
 
-从某个目录最近的笔记建立画像：
+从某个目录最近的笔记建立画像。中文与英文分开统计：中文按字（密度每千字），英文按词（密度每千词）；语言按语料自动检测，也可 `--lang zh|en` 强制指定，草稿只与同语言画像比较。
 
 ```bash
 python plugins/note-curator/skills/note-curator/scripts/style_profile.py \
@@ -130,9 +130,9 @@ python plugins/note-curator/skills/note-curator/scripts/style_profile.py \
 
 输出到 `~/.note-curator/style-profiles/<目录名>/`：
 
-- `profile.json`：统计指标
-- `profile.md`：统计摘要
-- `voice.md`：定性画像模板，Agent 阅读样本后补全
+- `profile.json`：统计指标（含 language 字段）
+- `profile.md`：统计摘要（语言跟随画像）
+- `voice.md`：定性画像模板（中文/英文各一套），Agent 阅读样本后补全
 
 写入前检查草稿：
 
@@ -141,7 +141,7 @@ python plugins/note-curator/skills/note-curator/scripts/style_check.py \
   _note.md --profile "~/.note-curator/style-profiles/04-AI/profile.json"
 ```
 
-结论分「基本一致 / 轻微偏差 / 明显偏差」。这是统计检查，不保证完全复制作者；建议同一目录至少 10 篇或 5000 字。
+结论分「基本一致 / 轻微偏差 / 明显偏差」；草稿与画像语言不一致时直接报「语言不一致」，不做跨语言比较。这是统计检查，不保证完全复制作者；建议同一目录至少 10 篇或 5000 单位。
 
 ## 配置
 

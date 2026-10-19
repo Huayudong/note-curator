@@ -16,7 +16,7 @@ import json
 import sys
 from pathlib import Path
 
-from style_metrics import analyze_text, compare_profiles
+from style_metrics import analyze_text, compare_profiles, LABELS
 
 
 def fmt(value):
@@ -54,34 +54,47 @@ def main():
     result = compare_profiles(profile, draft_metrics)
     result["draft"] = str(draft_path)
     result["profile"] = str(profile_path)
+    result["draft_language"] = draft_metrics.get("language")
+    result["profile_language"] = profile.get("language", "zh")
 
+    labels = LABELS[result["profile_language"]]
+    is_en = result["profile_language"] == "en"
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2))
     else:
         counts = result["counts"]
-        print("# 文风检查")
+        print("# %s" % ("Style check" if is_en else "文风检查"))
         print("")
-        print("结论：**%s**（major %d / minor %d / info %d）"
-              % (result["verdict"], counts["major"], counts["minor"], counts["info"]))
+        print("%s: profile=%s, draft=%s" % ("language" if is_en else "语言",
+                                            result["profile_language"],
+                                            result["draft_language"]))
+        print("")
+        print("%s%s%s（major %d / minor %d / info %d）"
+              % ("Verdict" if is_en else "结论", ": " if is_en else "：",
+                 result["verdict"], counts["major"], counts["minor"], counts["info"]))
         print("")
         findings = result["findings"][:args.max_findings]
         if not findings:
-            print("没有发现明显的统计偏差。")
+            print("No significant statistical deviation found." if is_en
+                  else "没有发现明显的统计偏差。")
             print("")
         else:
             major = [item for item in findings if item["severity"] == "major"]
             other = [item for item in findings if item["severity"] != "major"]
             if major:
-                print("## 优先调整")
+                print("## %s" % ("Fix first" if is_en else "优先调整"))
                 for item in major:
-                    print("- [major] %s：%s" % (item["category"], item["message"]))
+                    print("- [major] %s: %s" % (item["category"], item["message"]))
                 print("")
             if other:
-                print("## 其他提示")
+                print("## %s" % ("Other notes" if is_en else "其他提示"))
                 for item in other:
-                    print("- [%s] %s：%s" % (item["severity"], item["category"], item["message"]))
+                    print("- [%s] %s: %s" % (item["severity"], item["category"], item["message"]))
                 print("")
-        print("> 这是统计检查，只覆盖可量化特征；语气是否贴近本人，还要结合 voice.md 判断。")
+        print("> %s" % (
+            "Statistical check only; whether the tone truly matches still depends on voice.md."
+            if is_en else
+            "这是统计检查，只覆盖可量化特征；语气是否贴近本人，还要结合 voice.md 判断。"))
 
     if args.strict and result["counts"]["major"] > 0:
         sys.exit(1)

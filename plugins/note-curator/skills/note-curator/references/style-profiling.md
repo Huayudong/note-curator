@@ -1,5 +1,7 @@
 # 文风画像（style profiling）
 
+支持中文与英文两种语言，按语言分别统计、分别建画像：**中文以「字」为单位**（句长按字符、密度按每千字），**英文以「词」为单位**（句长按词数、密度按每千词）。语言由 `scripts/langdetect.py` 按 CJK 与拉丁字母占比自动检测，也可用 `--lang zh|en` 强制指定；`style_check.py` 只在同语言画像之间比较，跨语言直接报「语言不一致」。
+
 ## 它解决什么
 
 只模仿排版，能让新笔记“看起来”像旧笔记；但语气、句长、用词习惯仍然可能不像同一个人。文风画像在排版之外，再对齐四件事：
@@ -11,10 +13,26 @@
 
 实现分两层：
 
-- **统计层（确定性）**：`scripts/style_profile.py` 扫描本地笔记，计算上述指标，写出 `profile.json` 和 `profile.md`。
-- **定性层（Agent 阅读后写）**：Agent 阅读统计摘要和样本片段，把“语气是克制还是松弛、爱不爱用短句、有没有口头禅、段落怎么推进”写进 `voice.md`。
+- **统计层（确定性）**：`scripts/style_profile.py` 扫描本地笔记，按语言调用 `style_lang_zh.py` / `style_lang_en.py` 语言包计算指标，写出 `profile.json` 和 `profile.md`。
+- **定性层（Agent 阅读后写）**：Agent 阅读统计摘要和样本片段，把“语气是克制还是松弛、爱不爱用短句、有没有口头禅、段落怎么推进”写进 `voice.md`（英文画像用英文模板）。
 
-写入前再用 `scripts/style_check.py` 比较草稿和画像，报告明显偏差。
+写入前再用 `scripts/style_check.py` 比较草稿和画像，报告明显偏差（报告语言跟随画像语言）。
+
+### 英文语言包的特征
+
+英文方法论参考 [write-like-me](https://github.com/Hiro-Inagawa/write-like-me)（lexical / syntactic / hedging & stance / structural 四类），按本项目重写：
+
+- 句切分：缩写（Mr. / e.g. / U.S.）与小数点保护后按 `.!?` 切句；句长按词数。
+- 标点：comma / period / question / exclamation / colon / semicolon / dash / ellipsis / parens / quotes，每千词。
+- 人称：I / me / my / we / us / our / you / he / him / she / her / it / they / them / their（词边界匹配）。
+- hedges：maybe / perhaps / probably / seems / might / somewhat / tend to…
+- boosters：clearly / certainly / obviously / really / very / always / never…
+- connectors：however / but / therefore / because / although / in other words / on the other hand…
+- 修辞：example / analogy / enumeration / personal / transition。
+- 高频片段：词 1–3 gram（过滤停用词）；句首取前 3 个词。
+- 词汇丰富度：词级 TTR 与 hapax 比例。
+
+中文语言包见本文件其余部分；两种语言的特征键一一对应，但**阈值和单位不跨语言可比**。
 
 ## 能学什么，不能学什么
 
@@ -44,8 +62,11 @@
 ## 建立画像
 
 ```bash
-# 分析某个目录最近 20 篇
+# 分析某个目录最近 20 篇（语言自动检测）
 python scripts/style_profile.py --vault "D:/Obsidian/MyVault" --dir "04 人工智能"
+
+# 英文目录：强制英文统计（句长按词、密度按每千词）
+python scripts/style_profile.py --vault "D:/Obsidian/MyVault" --dir "04 AI" --lang en
 
 # 指定文件、指定画像名
 python scripts/style_profile.py --vault "D:/Obsidian/MyVault" \
@@ -59,9 +80,9 @@ python scripts/style_profile.py --vault "D:/Obsidian/MyVault" --all --name vault
 默认输出到 `~/.note-curator/style-profiles/<name>/`：
 
 ```text
-profile.json   # 机器可读统计，style_check.py 使用
-profile.md     # 人可读摘要，Agent 先读这份
-voice.md       # 定性画像模板，Agent 阅读样本后补全
+profile.json   # 机器可读统计（含 language 字段），style_check.py 使用
+profile.md     # 人可读摘要（语言跟随画像），Agent 先读这份
+voice.md       # 定性画像模板（中文/英文各一套），Agent 阅读样本后补全
 ```
 
 `--sample 0` 表示使用全部文件；`--no-recursive` 只扫描目标目录第一层。

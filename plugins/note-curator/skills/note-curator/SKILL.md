@@ -79,7 +79,8 @@ python scripts/check_setup.py --json
    - `profile.md`：人可读的统计摘要
    - `voice.md`：语气、用词、段落习惯等定性描述
 3. **画像缺失时**：
-   - 跑：`python scripts/style_profile.py --vault "<vault_path>" --dir "<目标目录>" --sample <config.style.profile_sample 或 20> --profile-dir "<config.style.profile_dir 或 ~/.note-curator/style-profiles>"`
+   - 跑：`python scripts/style_profile.py --vault "<vault_path>" --dir "<目标目录>" --sample <config.style.profile_sample 或 20> --lang <config.style.language 或 auto> --profile-dir "<config.style.profile_dir 或 ~/.note-curator/style-profiles>"`
+   - 语言按语料自动检测（中文按字、英文按词分别统计），也可以 `--lang zh|en` 强制指定；中文目录和英文目录各自建画像，不要混用。
    - 读 `profile.md` 和 `profile.json` 里的 `samples`，必要时打开 3–5 篇原始笔记，补全 `voice.md`：
      - 语气与态度、句长与节奏、用词习惯、段落与论证、标点习惯、要模仿、要避免、代表句。
    - 只写样本中能观察到的特征，不要编造；样本不足时直接说明。
@@ -111,6 +112,7 @@ python scripts/check_setup.py --json
 4. **定目录**：按 `config.yaml.taxonomy.rules` 的领域关键词匹配；未命中用 `default_dir`。`confirm_dir: true` 时先问用户。
 5. **生成草稿**：把正文写到 `_note.md`，先不要写盘。
 6. **文风自查**：`python scripts/style_check.py _note.md --profile "<步骤 2.5 的 profile.json>"`
+   - 草稿语言与画像语言不一致时会直接报「语言不一致」：换对应语言的画像重建，不要跨语言比较。
    - 结论「明显偏差」：按提示调整句长、标点、连接词、排版，重跑一次。
    - 「基本一致」或「轻微偏差」：可以继续，并在预览里附一句检查结论。
 7. **写入**：`python scripts/write_note.py new --vault "<vault_path>" --dir "<目录>" --title "<中文标题>" --file _note.md`
@@ -134,7 +136,7 @@ python scripts/check_setup.py --json
 | `scripts/find_duplicates.py` | 对新笔记在全库做关键词初筛，返回 Top-N 候选 | 查重时，喂 `--index` 和 `--query` |
 | `scripts/analyze_style.py` | 分析目录/笔记的排版风格，输出风格摘要供模仿 | 新建笔记前，对目标目录跑一次 |
 | `scripts/style_metrics.py` | 文风统计与比较的共享实现（句长、标点、人称、语气词、连接词、排版） | 被下面两个脚本调用 |
-| `scripts/style_profile.py` | 从本地笔记建立/更新文风画像（profile.json + profile.md + voice.md） | 新建/合并前，或用户要求学习文风时 |
+| `scripts/style_profile.py` | 从本地笔记建立/更新文风画像（profile.json + profile.md + voice.md），中英文分别统计（zh 按字、en 按词） | 新建/合并前，或用户要求学习文风时 |
 | `scripts/style_check.py` | 比较草稿与画像，报告明显的风格偏差 | 写入前 |
 | `scripts/fetch_url.py` | 抓取 URL 正文，输出清洗纯文本 | 链接模式第一步；失败则改用 Agent 的网页工具 |
 | `scripts/write_note.py` | 写入 vault：`new` 新建 / `merge` 合并（默认预览，`--apply` 写盘；merge 支持重复检测；合并不动 frontmatter，来源文末留痕） | 最后落库 |
