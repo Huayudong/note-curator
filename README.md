@@ -18,17 +18,28 @@ note-curator（笔记管家）是一个开源的通用 Agent skill：把网页�
 
 ### 1. 安装到你的 Agent
 
-**方式一 · npx 一键安装（推荐）**：SKILL.md 是跨 Agent 的开放标准（Claude Code、Codex、Cursor、Copilot CLI 等 27+ Agent 支持），用 skills CLI 安装即可，它会自动检测你机器上装了哪些 Agent，把 skill 放进正确的目录：
+**方式一 · ZCode 插件市场（推荐 ZCode 用户）**：仓库根目录带有 `.zcode-plugin/plugin.json` 和 `marketplace.json`，可以直接作为插件市场添加。
+
+1. 打开 ZCode 的「插件市场 → 添加 → 添加插件市场」。
+2. 粘贴仓库地址：`https://github.com/Huayudong/note-curator`。
+3. 在「个人 → note-curator-market」里安装「笔记管家」。
+
+> 如果之前手动把技能放进了 `~/.zcode/skills/note-curator`，请先删除那份再安装插件。用户级技能优先级高于插件技能，两者同时存在时插件版不会生效。
+
+插件更新：在插件市场里刷新 `note-curator-market`，再打开插件详情点「更新」。
+
+**方式二 · npx 一键安装（推荐非 ZCode 用户）**：SKILL.md 是跨 Agent 的开放标准（Claude Code、Codex、Cursor、Copilot CLI 等 27+ Agent 支持），skills CLI 会自动检测你机器上装了哪些 Agent，把技能放进正确的目录：
 
 ```bash
 npx skills add Huayudong/note-curator
 ```
 
-**方式二 · git clone**：把本项目克隆/复制到 Agent 的 skills 目录，保持目录名 `note-curator`：
+**方式三 · git clone / 手动复制**：技能源码在 `skills/note-curator/`，把它复制到 Agent 的 skills 目录，目录名保持 `note-curator`：
 
 ```bash
-git clone https://github.com/Huayudong/note-curator.git ~/.zcode/skills/note-curator   # ZCode / Codex
-# Claude Code: ~/.claude/skills/note-curator
+git clone https://github.com/Huayudong/note-curator.git
+cp -r note-curator/skills/note-curator ~/.zcode/skills/note-curator   # ZCode / Codex
+# Claude Code: cp -r note-curator/skills/note-curator ~/.claude/skills/note-curator
 # 其他 Agent：放进它加载 skills 的目录即可
 ```
 
@@ -39,10 +50,13 @@ git clone https://github.com/Huayudong/note-curator.git ~/.zcode/skills/note-cur
 **方式 B · 命令式**：
 
 ```bash
-python scripts/init_setup.py --vault "D:/Obsidian/MyVault" --author "你的署名"
+python skills/note-curator/scripts/init_setup.py --vault "D:/Obsidian/MyVault" --author "你的署名"
 # vault 目录还不存在？加 --create-vault
-# 想逐项询问？不带参数直接运行 python scripts/init_setup.py
+# 想逐项询问？不带参数直接运行 python skills/note-curator/scripts/init_setup.py
+# 已经安装到 Agent 的话，在技能目录里运行 scripts/init_setup.py
 ```
+
+默认写入 `~/.note-curator/config.yaml`，插件升级/重装不会覆盖它。旧版手动安装留下的 `<技能目录>/config.yaml` 仍会被沿用。
 
 ### 3. 开用
 
@@ -67,17 +81,22 @@ python scripts/init_setup.py --vault "D:/Obsidian/MyVault" --author "你的署�
 
 ```
 note-curator/
-├── SKILL.md                  # skill 主流程（Agent 读这份）
-├── config.example.yaml       # 配置模板（生成个人 config.yaml）
-├── references/
-│   ├── writing-style.md      # 人话写作守则（六条守则 + AI 腔黑名单 + 自查清单）
-│   ├── templates.md          # 知识类 / 实验类笔记模板
-│   ├── merge-rules.md        # 查重-合并规则与 patch 格式
-│   └── obsidian-adapter.md   # Obsidian 双链与 frontmatter 约定
-├── scripts/                  # 初始化 / 扫库 / 查重 / 学排版 / 抓网页 / 落库（全标准库）
-├── examples/                 # 两篇示例笔记（演示排版与文风）
-└── agents/openai.yaml        # Agent 界面元信息
+├── .zcode-plugin/
+│   └── plugin.json           # ZCode 插件清单
+├── marketplace.json          # ZCode 插件市场目录
+├── skills/
+│   └── note-curator/
+│       ├── SKILL.md          # skill 主流程（Agent 读这份）
+│       ├── config.example.yaml
+│       ├── references/       # 写作守则、模板、合并规则、Obsidian 适配
+│       ├── scripts/          # 初始化 / 扫库 / 查重 / 学排版 / 抓网页 / 落库
+│       ├── examples/         # 两篇示例笔记
+│       └── agents/openai.yaml
+├── README.md
+└── LICENSE
 ```
+
+> 本仓库同时是独立 skill 和 ZCode 插件。非 ZCode 用户只需要 `skills/note-curator/` 这一层，插件相关文件可以忽略。
 
 ## 配置速览
 
@@ -91,11 +110,11 @@ note-curator/
 | `style.geek_joke_probability` | 极客梗触发频率（0 为关闭） | 0.33 |
 | `style.allow_extension` | 允许延伸回答源文未解问题 | true |
 
-> `config.yaml` 是个人文件（含本机路径与署名），已列入 `.gitignore`，请勿提交。
+> `config.yaml` 默认生成在 `~/.note-curator/config.yaml`（插件升级/重装不会覆盖；如果技能目录里已有旧的 `config.yaml` 则沿用旧文件）。它含本机路径与署名，已列入 `.gitignore`，请勿提交。
 
 ## 示例
 
-见 [examples/](examples/)：一篇知识类（缓存穿透、击穿与雪崩），一篇实验类（RAG vs 长上下文），展示模板结构、人话文风、极客梗的浓度上限，以及延伸思考的标注方式。
+见 [examples/](skills/note-curator/examples/)：一篇知识类（缓存穿透、击穿与雪崩），一篇实验类（RAG vs 长上下文），展示模板结构、人话文风、极客梗的浓度上限，以及延伸思考的标注方式。
 
 ## 设计原则
 

@@ -1,7 +1,8 @@
 # note-curator 配置文件
-# 首次使用：把本文件复制为 config.yaml 并填写，或直接运行
-#   python scripts/init_setup.py
-# config.yaml 优先于本文件被读取；config.yaml 含个人路径，已列入 .gitignore，不要提交。
+# 首次使用：运行 python scripts/init_setup.py 生成个人配置，默认写到
+#   ~/.note-curator/config.yaml（插件升级/重装不会覆盖）。
+# 如果技能目录里已有旧的 config.yaml，则沿用旧文件。
+# 个人配置含本机路径，已列入 .gitignore，不要提交。
 
 # ===== 知识库（vault）位置 =====
 # 你的笔记库根目录（Obsidian vault 的绝对路径）。留空则首次运行时由 skill 引导初始化；

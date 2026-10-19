@@ -21,14 +21,14 @@ description: 中文笔记自动整理与归档（通用 Agent skill，适用于�
 
 每次接到整理任务，先做一次轻量检查，再按三种情况分流：
 
-1. **已配置**：`<本skill目录>/config.yaml` 存在且 `vault_path` 非空 → 直接走主流程。
+1. **已配置**：`<本skill目录>/config.yaml` 或 `~/.note-curator/config.yaml` 存在且 `vault_path` 非空 → 直接走主流程。
 2. **未配置，但用户想先看效果**（典型：只丢来一个链接说「整理一下」）→ **无 vault 模式**：跳过查重与落库，直接按模板 + 人话守则生成笔记全文输出给用户，结尾附一句「配置好知识库后我可以帮你直接归档，说『初始化笔记管家』就行」。不要连环追问配置，先给价值。
 3. **用户想完整使用**（明确说「存进知识库 / 归档 / 初始化」）→ 走**首次初始化**：
    - 一次性问齐（给出建议默认值，让用户回车即可）：vault 路径、author 署名、目录规则用不用示例。
-   - 然后跑：`python scripts/init_setup.py --vault "<路径>" --author "<署名>"`（vault 目录还不存在时加 `--create-vault`；不带参数运行脚本则是交互式逐项询问）。
+   - 然后跑：`python scripts/init_setup.py --vault "<路径>" --author "<署名>"`（默认写入 `~/.note-curator/config.yaml`；如果技能目录里已有旧的 `config.yaml` 则沿用旧文件，也可以用 `--config <路径>` 显式指定。vault 目录还不存在时加 `--create-vault`；不带参数运行脚本则是交互式逐项询问）。
    - 初始化完成后给一句确认，建议用户丢一篇内容试试。
 
-初始化与配置要点：`config.yaml` 由 `config.example.yaml` 生成（保留全部注释）；`config.yaml` 含个人路径，属个人文件。关键配置：`vault_path`（知识库绝对路径）、`taxonomy`（目录归类规则）、`dedup`（查重阈值与合并流程）、`backlinks`（双链策略）、`style`（人话守则可调项）。
+初始化与配置要点：`init_setup.py` 从 `config.example.yaml` 生成个人配置（保留全部注释），默认写到 `~/.note-curator/config.yaml`；如果 `<本skill目录>/config.yaml` 已存在则沿用旧文件。读取配置时按「技能目录 `config.yaml` → 用户级 `~/.note-curator/config.yaml`」的顺序找第一个存在的文件。`config.yaml` 含个人路径，属个人文件。关键配置：`vault_path`（知识库绝对路径）、`taxonomy`（目录归类规则）、`dedup`（查重阈值与合并流程）、`backlinks`（双链策略）、`style`（人话守则可调项）。
 
 ## 主流程（按输入自动分流）
 
@@ -96,7 +96,7 @@ description: 中文笔记自动整理与归档（通用 Agent skill，适用于�
 
 | 脚本 | 作用 | 何时用 |
 |------|------|--------|
-| `scripts/init_setup.py` | 首次初始化：从 config.example.yaml 生成 config.yaml（交互 / 命令参数两种模式），可顺带创建 vault 目录 | 首次使用或更换 vault 时 |
+| `scripts/init_setup.py` | 首次初始化：从 config.example.yaml 生成个人配置（默认 `~/.note-curator/config.yaml`；兼容旧的技能目录 config.yaml），可顺带创建 vault 目录 | 首次使用或更换 vault 时 |
 | `scripts/scan_vault.py` | 扫描 vault，输出笔记索引（标题/路径/frontmatter/正文摘要） | 查重与建双链前，跑一次 |
 | `scripts/find_duplicates.py` | 对新笔记在全库做关键词初筛，返回 Top-N 候选 | 查重时，喂 `--index` 和 `--query` |
 | `scripts/analyze_style.py` | 分析目录/笔记的排版风格，输出风格摘要供模仿 | 新建笔记前，对目标目录跑一次 |

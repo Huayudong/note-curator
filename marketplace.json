@@ -1,0 +1,22 @@
+{
+  "name": "note-curator-market",
+  "description": "note-curator 笔记管家的 ZCode 插件市场",
+  "plugins": [
+    {
+      "name": "note-curator",
+      "source": "./",
+      "version": "1.0.0",
+      "description": "把网页链接或本地草稿整理成结构化中文笔记，查重合并后归档到 Obsidian 知识库。",
+      "displayName": "Note Curator",
+      "displayName_i18n": {
+        "zh-CN": "笔记管家"
+      },
+      "description_i18n": {
+        "zh-CN": "整理网页链接或本地草稿，全库查重后合并或新建，归档到 Obsidian 知识库。"
+      },
+      "category": "productivity",
+      "publisherType": "community",
+      "homepage": "https://github.com/Huayudong/note-curator"
+    }
+  ]
+}

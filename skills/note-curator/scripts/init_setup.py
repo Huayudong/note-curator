@@ -9,7 +9,9 @@ init_setup.py — note-curator 首次初始化：从 config.example.yaml 生成�
 
 行为：
     1. 读取 skill 根目录的 config.example.yaml 作为模板（保留全部注释）。
-    2. 填入 vault_path 与 author，写出 config.yaml；已存在则拒绝（--force 覆盖）。
+    2. 填入 vault_path 与 author，写出个人配置；已存在则拒绝（--force 覆盖）。
+       默认写到 ~/.note-curator/config.yaml；若技能目录里已有旧的 config.yaml，
+       则沿用旧文件；也可以用 --config <路径> 显式指定。
     3. 校验 vault 目录；不存在且带 --create-vault 时创建（含默认收件箱目录）。
 
 只依赖标准库。config.yaml 含个人路径与署名，已被 .gitignore 排除，请勿提交。
@@ -21,6 +23,17 @@ import sys
 from pathlib import Path
 
 SKILL_ROOT = Path(__file__).resolve().parent.parent
+USER_CONFIG = Path.home() / ".note-curator" / "config.yaml"
+
+
+def resolve_config_path(explicit=None) -> Path:
+    """显式路径优先；否则沿用技能目录里的旧配置；最后落到用户级配置。"""
+    if explicit:
+        return Path(explicit).expanduser()
+    legacy = SKILL_ROOT / "config.yaml"
+    if legacy.exists():
+        return legacy
+    return USER_CONFIG
 
 
 def load_example() -> str:
@@ -34,9 +47,11 @@ def load_example() -> str:
 def render_template(tpl: str, vault: str, author: str) -> str:
     """把 vault 与 author 填进模板，只动对应字段行，注释原样保留。"""
     if vault:
-        tpl = re.sub(r'(?m)^vault_path:\s*".*"', 'vault_path: "' + vault + '"', tpl, count=1)
+        value = vault.replace("\\", "/").replace('"', '\\"')
+        tpl = re.sub(r'(?m)^vault_path:\s*".*"', lambda m: 'vault_path: "' + value + '"', tpl, count=1)
     if author:
-        tpl = re.sub(r'(?m)^(\s*)author:\s*".*"', lambda m: m.group(1) + 'author: "' + author + '"', tpl, count=1)
+        value = author.replace("\\", "\\\\").replace('"', '\\"')
+        tpl = re.sub(r'(?m)^(\s*)author:\s*".*"', lambda m: m.group(1) + 'author: "' + value + '"', tpl, count=1)
     return tpl
 
 
@@ -55,10 +70,11 @@ def main():
     ap.add_argument("--vault", help="知识库根目录（Obsidian vault 绝对路径）")
     ap.add_argument("--author", help="笔记作者署名（写入 frontmatter 的 author 字段）")
     ap.add_argument("--create-vault", action="store_true", help="vault 目录不存在时创建（含默认收件箱）")
-    ap.add_argument("--force", action="store_true", help="覆盖已存在的 config.yaml")
+    ap.add_argument("--force", action="store_true", help="覆盖已存在的配置文件")
+    ap.add_argument("--config", help="配置文件路径（默认 ~/.note-curator/config.yaml；技能目录已有 config.yaml 时沿用）")
     args = ap.parse_args()
 
-    cfg = SKILL_ROOT / "config.yaml"
+    cfg = resolve_config_path(args.config)
     if cfg.exists() and not args.force:
         print("[STOP] config.yaml 已存在：" + str(cfg))
         print("       如需重新初始化，加 --force 覆盖；或直接编辑该文件。")
@@ -75,9 +91,10 @@ def main():
     if not author:
         author = ask("笔记作者署名（写入每篇笔记的 author 字段）")
 
-    vault = vault.strip().strip('"').rstrip("/")
+    vault = vault.strip().strip('"').replace("\\", "/").rstrip("/")
     author = author.strip().strip('"')
 
+    cfg.parent.mkdir(parents=True, exist_ok=True)
     cfg.write_text(render_template(load_example(), vault, author), encoding="utf-8")
     print("[OK] 已生成 " + str(cfg))
 

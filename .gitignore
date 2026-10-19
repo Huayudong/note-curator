@@ -5,11 +5,15 @@ config.yaml
 _article.txt
 _index.json
 _patch.md
+_patch_*.md
 _note.md
+_note_*.md
+_pdfx.py
 
 # Python
 __pycache__/
 *.pyc
+.venv/
 
 # OS
 .DS_Store
