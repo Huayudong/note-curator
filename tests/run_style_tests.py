@@ -177,6 +177,40 @@ def main():
         check("mismatch reported", "语言不一致" in r.stdout and r.returncode == 1,
               r.stdout[-300:])
 
+        # --- 8. 持续学习（style_learn）---
+        import shutil
+        learn_vault = tmp / "learn-vault"
+        learn_vault.mkdir()
+        shutil.copy(ZH_FIXTURE, learn_vault / "note-a.md")
+        shutil.copy(ZH_EXAMPLE, learn_vault / "note-b.md")
+        lp_dir = tmp / "learn-profile"
+        r = run([SCRIPTS / "style_profile.py", "--vault", learn_vault,
+                 "--files", "note-a.md", "--profile-dir", lp_dir, "--name", "learn"])
+        check("learn base profile exit 0", r.returncode == 0, r.stderr[-300:])
+        lp = lp_dir / "learn" / "profile.json"
+
+        r = run([SCRIPTS / "style_learn.py", "--profile", lp, "--note", "note-b.md"])
+        check("learn note accepted", r.returncode == 0 and "已学习 1 篇" in r.stdout,
+              "rc=%s %s%s" % (r.returncode, r.stdout[-200:], r.stderr[-200:]))
+        data = json.loads(lp.read_text(encoding="utf-8"))
+        check("learn corpus grew", data["corpus"]["file_count"] == 2,
+              str(data["corpus"]))
+        check("learn history kept", len(data.get("history", [])) == 1
+              and data.get("learned_count") == 1, str(data.get("history")))
+        check("learn keeps language", data.get("language") == "zh")
+
+        r = run([SCRIPTS / "style_learn.py", "--profile", lp, "--note", "note-b.md"])
+        check("learn duplicate rejected", r.returncode == 2, "rc=%s" % r.returncode)
+        data2 = json.loads(lp.read_text(encoding="utf-8"))
+        check("learn duplicate no change", data2["corpus"]["file_count"] == 2
+              and data2.get("learned_count") == 1)
+
+        r = run([SCRIPTS / "style_learn.py", "--profile", lp,
+                 "--note", EN_FIXTURES / "cache-invalidation.md"])
+        check("learn cross-language rejected", r.returncode == 2, "rc=%s" % r.returncode)
+        data3 = json.loads(lp.read_text(encoding="utf-8"))
+        check("learn cross-language no change", data3["corpus"]["file_count"] == 2)
+
     print("")
     if FAILURES:
         print("FAILED: %d test(s): %s" % (len(FAILURES), ", ".join(FAILURES)))

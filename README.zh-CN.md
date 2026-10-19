@@ -145,6 +145,8 @@ python plugins/note-curator/skills/note-curator/scripts/style_check.py \
 
 中文画像有额外的深度特征：把/被句式密度、四字格、口语词、顿号与书名号、中英混排度，以及与写作守则黑名单同步的 AI 腔命中——画像语料里没有、草稿里出现时直接报偏差。
 
+画像会持续学习：你修改完一篇笔记后说「学习这篇的写法」，`style_learn.py` 会把改稿并入画像（滚动窗口、语言校验、历史留痕）。只学习你的改稿，绝不把插件自己生成的草稿当作你的文风。
+
 ## 配置
 
 见 [`config.example.yaml`](plugins/note-curator/skills/note-curator/config.example.yaml)。主要配置项是 `vault_path`、`taxonomy.rules`、`dedup`、`backlinks` 和 `style`。

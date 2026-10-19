@@ -122,6 +122,8 @@ The result is consistent / minor deviation / major deviation. A language mismatc
 
 Chinese profiles get extra depth: 把/被 construction density, four-character phrases, colloquialisms, 顿号 and 《》 punctuation, Latin-mixing density, and AI-tell blacklist hits (aligned with the writing guide) that are flagged directly when they appear in a draft but not in the profile.
 
+The profile keeps learning: after you edit a note, ask the agent to "learn from this note" and `style_learn.py` folds your edited version back into the profile (rolling window, language-checked, with history). Only your edits are learned — never the plugin's own drafts.
+
 ## Configuration
 
 See [`config.example.yaml`](plugins/note-curator/skills/note-curator/config.example.yaml). The main options are `vault_path`, `taxonomy.rules`, `dedup`, `backlinks`, and `style`.
