@@ -211,6 +211,50 @@ def main():
         data3 = json.loads(lp.read_text(encoding="utf-8"))
         check("learn cross-language no change", data3["corpus"]["file_count"] == 2)
 
+        # --- 9. 英文查重 + 语言过滤 + 界面文案 ---
+        import shutil as _shutil
+        dedup_vault = tmp / "dedup-vault"
+        dedup_vault.mkdir()
+        for src in (EN_FIXTURES.glob("*.md")):
+            _shutil.copy(src, dedup_vault / src.name)
+        _shutil.copy(ZH_FIXTURE, dedup_vault / "zh-note.md")
+        r = run([SCRIPTS / "scan_vault.py", "--vault", dedup_vault,
+                 "--out", tmp / "dedup-index.json"])
+        check("scan exit 0", r.returncode == 0, r.stderr[-200:])
+        idx = json.loads((tmp / "dedup-index.json").read_text(encoding="utf-8"))
+        langs = {n["path"]: n.get("language") for n in idx}
+        check("index records language",
+              langs.get("cache-invalidation.md") == "en" and langs.get("zh-note.md") == "zh",
+              str(langs))
+
+        r = run([SCRIPTS / "find_duplicates.py", "--index", tmp / "dedup-index.json",
+                 "--query", "caching strategies and invalidation with ttl jitter"])
+        hits = json.loads(r.stdout)
+        check("en dedup finds en note", hits and hits[0]["path"] == "cache-invalidation.md",
+              r.stdout[:300])
+
+        r = run([SCRIPTS / "find_duplicates.py", "--index", tmp / "dedup-index.json",
+                 "--query", "caching strategies and invalidation with ttl jitter",
+                 "--lang", "zh"])
+        hits_zh = json.loads(r.stdout)
+        check("lang filter excludes en", all(h["path"] != "cache-invalidation.md" for h in hits_zh),
+              r.stdout[:200])
+
+        r = run([SCRIPTS / "find_duplicates.py", "--index", tmp / "dedup-index.json",
+                 "--query", "缓存 失效 策略"])
+        hits2 = json.loads(r.stdout)
+        check("zh query auto-filters to zh", all(h.get("language") != "en" for h in hits2),
+              r.stdout[:200])
+
+        # 界面文案
+        r = run([SCRIPTS / "check_setup.py", "--lang", "en", "--json"])
+        check("check_setup en messages", "No note-curator configuration" in r.stdout,
+              r.stdout[:200])
+        r = run([SCRIPTS / "init_setup.py", "--vault", tmp / "v-en", "--author", "T",
+                 "--config", tmp / "cfg-en.yaml", "--lang", "en"])
+        check("init_setup en messages", "[OK] Generated" in r.stdout and "Next:" in r.stdout,
+              r.stdout[:300])
+
     print("")
     if FAILURES:
         print("FAILED: %d test(s): %s" % (len(FAILURES), ", ".join(FAILURES)))

@@ -10,7 +10,7 @@ note-curator is an open-source Agent Skill for Chinese note curation. It fetches
 
 - **Link or draft → note**: fetch a URL or read a local draft, then produce a structured Chinese note.
 - **Two note types**: knowledge notes for concepts and explanations, experiment notes for setup, method, data, and conclusions.
-- **Vault-wide deduplication**: keyword pre-filter plus semantic judgment before writing.
+- **Vault-wide deduplication**: keyword pre-filter plus semantic judgment before writing; queries are matched within the same language by default, with light English stemming (caching/cache/caches share a root) and title weighting.
 - **Merge instead of duplicate**: append new knowledge, correct only clear errors, preview the diff, then write.
 - **Obsidian backlinks**: link concepts to existing notes with title-first matching and a confidence threshold.
 - **Style-aware formatting**: mirror the target folder's frontmatter, heading levels, list markers, emphasis, and structural density.

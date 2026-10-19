@@ -32,6 +32,8 @@ import re
 import sys
 from pathlib import Path
 
+from langdetect import detect_language
+
 
 FRONTMATTER_RE = re.compile(r"\A---\s*\n(.*?)\n---\s*\n?", re.DOTALL)
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.*)$", re.MULTILINE)
@@ -115,6 +117,7 @@ def scan_vault(vault: Path, max_body: int = 800):
             "title": title,
             "path": str(rel).replace("\\", "/"),
             "abspath": str(md).replace("\\", "/"),
+            "language": detect_language(body_clean),
             "frontmatter": fm,
             "headings": extract_headings(body),
             "body": body_clean[:max_body],

@@ -14,17 +14,20 @@ adapter: "obsidian"
 
 # ===== 目录归类规则 =====
 # 按知识领域归类：domain 关键词命中 → 笔记归入 dir。下面是可直接改用的示例。
+# domain 支持中英混合关键词——中文笔记命中中文词，英文笔记命中英文词，规则通用。
 # 未命中任何规则的内容落到 default_dir（收件箱，便于人工复核）。
 taxonomy:
   default_dir: "00 Inbox"
   rules:
-    - domain: ["编程", "代码", "算法", "数据结构", "数据库", "Git", "Linux", "操作系统", "计算机网络", "前端", "后端", "Python", "Java", "C++"]
+    - domain: ["编程", "代码", "算法", "数据结构", "数据库", "Git", "Linux", "操作系统", "计算机网络", "前端", "后端", "Python", "Java", "C++",
+               "programming", "code", "algorithm", "database", "backend", "frontend"]
       dir: "编程"
-    - domain: ["AI", "人工智能", "大模型", "LLM", "机器学习", "深度学习", "神经网络", "prompt", "提示词", "RAG", "Agent", "NLP"]
+    - domain: ["AI", "人工智能", "大模型", "LLM", "机器学习", "深度学习", "神经网络", "prompt", "提示词", "RAG", "Agent", "NLP",
+               "machine learning", "deep learning", "neural network"]
       dir: "AI"
-    - domain: ["读书", "文学", "写作", "小说", "散文", "历史"]
+    - domain: ["读书", "文学", "写作", "小说", "散文", "历史", "reading", "literature", "writing", "history"]
       dir: "人文"
-    - domain: ["科普", "常识", "杂学", "冷知识"]
+    - domain: ["科普", "常识", "杂学", "冷知识", "science", "trivia"]
       dir: "杂学"
   # 若为 true，则每次归类后由用户确认目录；false 则自动归类。
   confirm_dir: false

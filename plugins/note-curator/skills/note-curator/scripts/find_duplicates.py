@@ -35,6 +35,9 @@ import json
 import re
 import sys
 from collections import Counter
+from pathlib import Path
+
+from langdetect import detect_language
 
 # 中文停用词（轻量版，够用即可）
 STOPWORDS = set("""
@@ -49,8 +52,37 @@ the a an of to in on is are for and with that this it as be by at
 WORD_RE = re.compile(r"[A-Za-z][A-Za-z0-9_\-+.]*|\d+|[\u4e00-\u9fff]")
 
 
+def _stem_en(word: str) -> str:
+    """轻量英文词形归一（零依赖）：复数/时态/派生后缀折叠，提升查重召回。
+
+    只追求「同词根归一」，不追求语言学正确；中文 token 原样返回。
+    """
+    w = word.lower().removesuffix("'s")
+    if re.fullmatch(r"[a-z]+", w):
+        if w.endswith("ies") and len(w) > 4:
+            w = w[:-3] + "y"
+        elif w.endswith("sses"):
+            w = w[:-2]
+        elif w.endswith("s") and not w.endswith("ss") and len(w) > 3:
+            w = w[:-1]
+        if w.endswith("ation") and len(w) > 7:
+            w = w[:-5] + "ate"
+        if w.endswith("ing") and len(w) > 5:
+            w = w[:-3]
+        elif w.endswith("ed") and len(w) > 4:
+            w = w[:-2]
+        if w.endswith("al") and len(w) > 6:
+            w = w[:-2]
+        if w.endswith("e") and len(w) > 4:
+            w = w[:-1]
+        # 双写辅音折叠：running -> runn -> run，与 runs 对齐
+        if len(w) > 4 and w[-1] == w[-2] and w[-1] not in "lsz":
+            w = w[:-1]
+    return w
+
+
 def tokenize(text: str):
-    """混合分词：英文整词、中文先取 2-gram 再取单字，去停用词、去纯标点。"""
+    """混合分词：英文整词（归一化词形）、中文 2-gram + 单字，去停用词、去纯标点。"""
     text = text.lower()
     raw = WORD_RE.findall(text)
     # 重组连续中文段做 2-gram
@@ -64,7 +96,7 @@ def tokenize(text: str):
                 tokens.extend(_zh_ngrams(buf))
                 buf = []
             if t not in STOPWORDS and len(t) > 1 or t.isdigit():
-                tokens.append(t)
+                tokens.append(_stem_en(t))
     if buf:
         tokens.extend(_zh_ngrams(buf))
     return [t for t in tokens if t and t not in STOPWORDS]
@@ -95,24 +127,34 @@ def overlap_coef(a: set, b: set) -> float:
     return len(a & b) / min(len(a), len(b))
 
 
-def find_dup(index, query_text, top=5, min_score=0.15):
+def find_dup(index, query_text, top=5, min_score=0.15, lang="auto"):
+    """查重初筛。lang=auto 时按查询语言过滤同语言笔记；all 不过滤。"""
     q_tokens = tokenize(query_text)
     q_set = set(q_tokens)
     q_freq = Counter(q_tokens)
+    query_lang = detect_language(query_text)
+    if lang == "auto":
+        lang = query_lang
+
     hits = []
     for note in index:
+        if lang != "all" and note.get("language", query_lang) != lang:
+            continue
+        title_tokens = tokenize(note.get("title", "") or "")
         n_tokens = tokenize(note.get("title", "") + " " + note.get("body", ""))
         n_set = set(n_tokens)
-        # 综合分：jaccard 主、overlap 兜底（避免短查询漏检）
+        title_set = set(title_tokens)
+        # 综合分：jaccard 主、overlap 兜底（避免短查询漏检），标题命中再加权
         j = jaccard(q_set, n_set)
         o = overlap_coef(q_set, n_set)
-        score = max(j, 0.6 * o)
+        score = max(j, 0.6 * o) + min(0.05 * len(q_set & title_set), 0.15)
         if score < min_score:
             continue
         overlap_terms = sorted(q_set & n_set, key=lambda t: -q_freq.get(t, 0))[:12]
         hits.append({
             "title": note.get("title"),
             "path": note.get("path"),
+            "language": note.get("language"),
             "score": round(score, 3),
             "overlap_terms": overlap_terms,
             "body": note.get("body", "")[:300],
@@ -128,6 +170,8 @@ def main():
     ap.add_argument("--query-file", help="读取该文件作为查询文本")
     ap.add_argument("--top", type=int, default=5, help="返回候选数（默认 5）")
     ap.add_argument("--min-score", type=float, default=0.15, help="最低分数阈值（默认 0.15）")
+    ap.add_argument("--lang", choices=["auto", "zh", "en", "all"], default="auto",
+                    help="只在同语言笔记中查重（auto=跟随查询语言）；all 不过滤")
     ap.add_argument("--out", help="可选：写入文件；不给则打到 stdout")
     args = ap.parse_args()
 
@@ -140,16 +184,14 @@ def main():
         sys.exit(1)
 
     index = json.load(open(args.index, encoding="utf-8"))
-    hits = find_dup(index, query_text, top=args.top, min_score=args.min_score)
+    hits = find_dup(index, query_text, top=args.top, min_score=args.min_score, lang=args.lang)
     data = json.dumps(hits, ensure_ascii=False, indent=2)
     if args.out:
-        Path(args.out).write_text(data, encoding="utf-8") if False else open(args.out, "w", encoding="utf-8").write(data)
+        Path(args.out).write_text(data, encoding="utf-8")
         print(f"[OK] {len(hits)} 个候选 -> {args.out}", file=sys.stderr)
     else:
         print(data)
 
-
-from pathlib import Path  # noqa: E402  (放末尾仅为 --out 写文件用)
 
 if __name__ == "__main__":
     main()

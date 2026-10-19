@@ -62,9 +62,9 @@ python scripts/check_setup.py --json
 
 ### 步骤 2：全库查重（关键，先于任何写入）
 
-1. 扫库：`python scripts/scan_vault.py --vault "<vault_path>" --out _index.json --max-body 400`
+1. 扫库：`python scripts/scan_vault.py --vault "<vault_path>" --out _index.json --max-body 400`（索引含每篇笔记的 `language`）
 2. 初筛：`python scripts/find_duplicates.py --index _index.json --query "<新笔记主题+核心要点>" --top 5`
-   - 把要整理的内容（或其主题句）当作 `--query`。
+   - 把要整理的内容（或其主题句）当作 `--query`。默认只在**与查询同语言**的笔记中查重（中文查中文、英文查英文）；明确要跨语言时加 `--lang all`。英文查询自带轻量词形归一（caching/cache/caches 同根）。
 3. **语义裁决（你来做）**：脚本只给关键词初筛分数，是否真重复由你结合两篇正文判断。脚本初筛可能漏（尤其中文术语分词），必要时在 `_index.json` 里按关键词人工核查相关笔记：
    - 主题相似度 ≥ `dedup.similarity_threshold`（默认 0.65）→ **命中**，走步骤 3a（合并）。
    - < 阈值 → **未命中**，走步骤 3b（新建）。
@@ -137,10 +137,10 @@ python scripts/check_setup.py --json
 
 | 脚本 | 作用 | 何时用 |
 |------|------|--------|
-| `scripts/check_setup.py` | 检查配置是否存在、vault 是否有效、署名是否已填；未就绪时阻止生成并给出下一步 | 每次整理任务开始前 |
-| `scripts/init_setup.py` | 首次初始化：从 config.example.yaml 生成个人配置（默认 `~/.note-curator/config.yaml`；兼容旧的技能目录 config.yaml），可顺带创建 vault 目录 | 首次使用或更换 vault 时 |
-| `scripts/scan_vault.py` | 扫描 vault，输出笔记索引（标题/路径/frontmatter/正文摘要） | 查重与建双链前，跑一次 |
-| `scripts/find_duplicates.py` | 对新笔记在全库做关键词初筛，返回 Top-N 候选 | 查重时，喂 `--index` 和 `--query` |
+| `scripts/check_setup.py` | 检查配置是否存在、vault 是否有效、署名是否已填；未就绪时阻止生成并给出下一步（`--lang zh/en` 切换提示语言） | 每次整理任务开始前 |
+| `scripts/init_setup.py` | 首次初始化：从 config.example.yaml 生成个人配置（默认 `~/.note-curator/config.yaml`；兼容旧的技能目录 config.yaml），可顺带创建 vault 目录（`--lang en` 英文提示） | 首次使用或更换 vault 时 |
+| `scripts/scan_vault.py` | 扫描 vault，输出笔记索引（标题/路径/语言/frontmatter/正文摘要） | 查重与建双链前，跑一次 |
+| `scripts/find_duplicates.py` | 对新笔记在全库做关键词初筛（同语言过滤、英文词形归一、标题加权），返回 Top-N 候选 | 查重时，喂 `--index` 和 `--query` |
 | `scripts/analyze_style.py` | 分析目录/笔记的排版风格，输出风格摘要供模仿 | 新建笔记前，对目标目录跑一次 |
 | `scripts/style_metrics.py` | 文风统计与比较的共享实现（句长、标点、人称、语气词、连接词、排版） | 被下面两个脚本调用 |
 | `scripts/style_profile.py` | 从本地笔记建立/更新文风画像（profile.json + profile.md + voice.md），中英文分别统计（zh 按字、en 按词） | 新建/合并前，或用户要求学习文风时 |
