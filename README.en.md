@@ -185,6 +185,14 @@ Wilson interval, ties reported separately, >60% is only an exploration threshold
 User feedback: `feedback.py` stays local by default and can convert into pending eval
 tasks. No default strategy changed because of evaluation results.
 
-## License## License
+## Stability and diagnostics (B11)
+
+- **Cross-process write lock**: concurrent writes to the same vault are rejected (E-LOCK, exit 2); stale locks from crashed processes are taken over after 5 minutes; external editors are still guarded by base-hash checks.
+- **State schema compatibility matrix**: plans/baselines/index/profiles/packs each carry a schema ceiling — files written by a newer version are refused with an upgrade hint.
+- **doctor diagnostics**: `doctor.py [--json] [--clean]` — versions, pack status, data-dir usage, state schema audit, active locks, recent writes (sanitized: home shown as ~, never any note content); `--clean` prunes by retention defaults.
+- **Performance benchmark**: `perf_bench.py --notes N` is reproducible (full/incremental index, search, and scan timings plus memory peak on a synthetic vault).
+- **Path torture**: Chinese+space directories, extra-long filenames, and NFD combined characters are covered by write/undo/index/search regressions.
+
+## License## License## License
 
 [MIT](LICENSE)

@@ -260,3 +260,112 @@ def vault_id_for(vault_path):
         except OSError:
             pass
     return vid
+
+
+# ---------- 写锁与状态版本兼容矩阵（B11-04/09） ----------
+
+WRITER_VERSION = "2.6.0"
+
+# 各状态文件可识别的最大 schema；超出说明由更新版本的写入者创建，
+# 旧版本必须拒绝而不是猜（B11-09 兼容矩阵）。
+SCHEMA_MAX = {
+    "plan": 1,
+    "baseline": 1,
+    "source_document": 1,
+    "source_registry": 1,
+    "index": 3,
+    "profile": 3,
+    "pack": 1,
+}
+
+
+def schema_of(obj):
+    if isinstance(obj, dict):
+        value = obj.get("schema", obj.get("schema_version"))
+        if isinstance(value, int):
+            return value
+    return None
+
+
+def check_schema(kind, obj):
+    """状态 schema 超出本版本可识别范围时抛 ValueError（E-SCHEMA-NEW）。"""
+    limit = SCHEMA_MAX.get(kind)
+    value = schema_of(obj)
+    if limit is not None and value is not None and value > limit:
+        raise ValueError("E-SCHEMA-NEW:%s:%s>%s" % (kind, value, limit))
+
+
+def locks_dir():
+    return data_root() / "locks"
+
+
+def _lock_key(key):
+    return hashlib.sha256(str(key).encode("utf-8")).hexdigest()[:16]
+
+
+def acquire_lock(key, stale_seconds=300):
+    """按 key 取文件锁；成功返回锁路径，占用中返回 None。
+
+    锁文件记录 pid/时间/写入者版本；超过 stale_seconds 的陈旧锁
+    （进程崩溃残留）可被接管。锁只协调本工具自身的并发入口，
+    外部编辑器仍靠 base_hash 校验兜底（B11-04）。
+    """
+    d = locks_dir()
+    d.mkdir(parents=True, exist_ok=True)
+    lock_path = d / (_lock_key(key) + ".lock")
+    now = datetime.datetime.now().timestamp()
+    if lock_path.exists():
+        info = {}
+        try:
+            info = json.loads(lock_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            pass
+        if now - float(info.get("at", 0)) <= stale_seconds:
+            return None
+        try:
+            os.remove(str(lock_path))
+        except OSError:
+            return None
+    try:
+        fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    except FileExistsError:
+        return None
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        handle.write(json.dumps({"pid": os.getpid(), "at": now,
+                                 "writer": WRITER_VERSION,
+                                 "key": str(key)[:80]},
+                                ensure_ascii=False))
+    return lock_path
+
+
+def release_lock(lock_path):
+    if not lock_path:
+        return
+    try:
+        os.remove(str(lock_path))
+    except OSError:
+        pass
+
+
+def storage_usage():
+    """数据目录占用（B11-10 诊断用）：按子目录统计文件数与字节数。"""
+    report = {}
+    root = data_root()
+    if not root.is_dir():
+        return report
+    for child in sorted(root.iterdir()):
+        if child.is_dir():
+            files = 0
+            total = 0
+            for f in child.rglob("*"):
+                if f.is_file():
+                    files += 1
+                    try:
+                        total += f.stat().st_size
+                    except OSError:
+                        pass
+            report[child.name] = {"files": files, "bytes": total}
+        elif child.is_file():
+            report[child.name] = {"files": 1,
+                                  "bytes": child.stat().st_size}
+    return report

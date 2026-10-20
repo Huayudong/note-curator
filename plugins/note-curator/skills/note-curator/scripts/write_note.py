@@ -260,9 +260,22 @@ def commit_plan(args, plan):
                         "该计划已撤销，不能再次应用；请重新整理生成新计划。",
                         run_id=plan["run_id"])
     vault = load_vault(plan["vault"])
+    lock = nc_core.acquire_lock("vault:" + str(vault))
+    if lock is None:
+        raise TaskError("E-LOCK",
+                            "另一进程正在写入同一 vault，请稍后重试；"
+                            "若确认无并发（崩溃残留），30 分钟后锁会自动过期。",
+                            run_id=plan["run_id"])
     target = resolve_vault_target(vault, plan["target"])
     run_id = plan["run_id"]
 
+    try:
+        return _commit_inner(args, plan, vault, target, run_id)
+    finally:
+        nc_core.release_lock(lock)
+
+
+def _commit_inner(args, plan, vault, target, run_id):
     if plan["op"] == "new":
         if target.exists():
             current = target.read_text(encoding="utf-8")
@@ -345,6 +358,12 @@ def cmd_apply(args):
         raise TaskError("E-PLAN-MISSING",
                         "找不到写入计划：%s（--run 接 run_id，--plan 接计划文件路径）"
                         % (args.run or args.plan), exit_code=EXIT_ERROR)
+    try:
+        nc_core.check_schema("plan", plan)
+    except ValueError as exc:
+        raise TaskError("E-SCHEMA-NEW",
+                        "该计划由更新版本的写入者创建（%s），请升级后再试。"
+                        % exc, exit_code=EXIT_ERROR)
     return commit_plan(args, plan)
 
 

@@ -215,6 +215,14 @@ python plugins/note-curator/skills/note-curator/scripts/style_check.py \
 探索门槛）。用户反馈 `feedback.py` 默认只存本地，可转为待办评测任务。
 新策略成为默认必须先有报告且硬约束通过；当前默认策略未因评测改变。
 
-## License## License
+## 稳定性与诊断（B11）
+
+- **跨进程写锁**：同一 vault 的并发写入被拒绝（E-LOCK，退出码 2），崩溃残留锁 5 分钟后可自动接管；外部编辑器仍由 base_hash 校验兜底。
+- **状态版本兼容矩阵**：计划/基线/索引/画像/语言包各有 schema 上限，超出说明由更新版本的写入者创建，旧版本拒绝执行并提示升级。
+- **doctor 诊断**：`doctor.py [--json] [--clean]`——版本、语言包状态、数据目录占用、状态 schema 审计、活动锁、最近写入（脱敏：用户目录显示为 ~，不含任何笔记内容）；`--clean` 按保留期限清理。
+- **性能基准**：`perf_bench.py --notes N` 可复跑（合成库上的全量/增量索引、检索、扫描计时与内存峰值）。
+- **路径拷打**：中文+空格目录、超长文件名、NFD 组合字符的写入/撤销/索引/检索有回归覆盖。
+
+## License## License## License
 
 [MIT](LICENSE)
