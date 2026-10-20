@@ -396,6 +396,55 @@ def main():
         banned = [f for f in ab2["findings"] if f.get("user_banned")]
         check("b03 ban flags", len(banned) == 1, str(banned)[:150])
 
+        # --- 13. B04: fact retention, budget, tail-list violation ---
+        import shutil as _sh3
+
+        b04_dir = tmp / "b04"
+        b04_dir.mkdir()
+        source_md = b04_dir / "source.md"
+        source_md.write_text(
+            "2026-09-30 发布的基准测试显示，p99 延迟从 800ms 降到 300ms，吞吐提升 45%。"
+            "该结论仅在只读负载下成立，可能随写入比例变化。集群配置了 3 副本。"
+            "官方文档明确表示不支持跨机房同步。", encoding="utf-8")
+        good = b04_dir / "good.md"
+        good.write_text(
+            "基准测试（2026-09-30）表明 p99 延迟从 800ms 降到 300ms，吞吐提升 45%。"
+            "该结论仅在只读负载下成立，可能随写入比例变化。集群配置了 3 副本。"
+            "官方文档不支持跨机房同步。" + "补充说明。" * 150, encoding="utf-8")
+        r = run([SCRIPTS / "fact_check.py", "--source", str(source_md),
+                 "--draft", str(good), "--json"])
+        rep = json.loads(r.stdout)
+        check("b04 full retention passes", r.returncode == 0
+              and rep["retention"]["missing"] == [],
+              json.dumps(rep["retention"]["missing"], ensure_ascii=False))
+        bad = b04_dir / "bad.md"
+        bad.write_text("性能大幅提升，支持跨机房同步。", encoding="utf-8")
+        r = run([SCRIPTS / "fact_check.py", "--source", str(source_md),
+                 "--draft", str(bad), "--json", "--strict"])
+        rep2 = json.loads(r.stdout)
+        check("b04 missing facts rc1", r.returncode == 1
+              and {"number", "limit", "negation"} <= set(
+                  m["kind"] for m in rep2["retention"]["missing"]),
+              str(sorted(m["kind"] for m in rep2["retention"]["missing"])))
+        nl2 = chr(10) + chr(10)
+        tail_md = b04_dir / "tail.md"
+        tail_md.write_text(good.read_text(encoding="utf-8")
+                           + nl2 + "## Related" + nl2 + "- [[cache]]" + chr(10),
+                           encoding="utf-8")
+        r = run([SCRIPTS / "fact_check.py", "--source", str(source_md),
+                 "--draft", str(tail_md), "--json"])
+        rep3 = json.loads(r.stdout)
+        check("b04 tail list violation rc2", r.returncode == 2
+              and rep3["tail_violation"] is not None,
+              str(rep3.get("tail_violation"))[:150])
+        r = run([SCRIPTS / "fact_check.py", "--source", str(source_md),
+                 "--draft", str(good), "--json", "--lang", "zh"])
+        rep4 = json.loads(r.stdout)
+        check("b04 zh budget shape", rep4["budget"]["lang"] == "zh"
+              and rep4["budget"]["unit"] == "字"
+              and rep4["budget"]["within_soft"] is True,
+              str(rep4["budget"])[:150])
+
     print("")
     if FAILURES:
         print("FAILED: %d test(s): %s" % (len(FAILURES), ", ".join(FAILURES)))

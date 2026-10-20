@@ -14,6 +14,7 @@ note-curator is an open-source Agent Skill for Chinese note curation. It fetches
 - **Merge instead of duplicate**: append new knowledge, correct only clear errors, preview the diff, then write through a plan → apply → undo transaction.
 - **Write safety**: every write goes through a WritePlan with base-hash conflict checks, atomic replacement, controlled backups, path containment (no absolute paths, `..`, symlink escapes, Windows reserved names, or case-only collisions), an undo command, and a write log.
 - **Obsidian backlinks**: link concepts to existing notes with title-first matching and a confidence threshold; links live where the concept appears in the body — no "Related notes" list at the end.
+- **Fact-fidelity check (B04)**: before writing, the draft is checked against source-critical facts (numbers and units, dates, qualifiers, negations), plus a length budget (crossing the hard cap flags a split review) and a tail "Related notes" list violation detector; at most two revision rounds.
 - **Topic focus**: one note answers one question; longer side topics are deduplicated first and split into complete child notes when truly needed, linked from the body.
 - **Style-aware formatting**: mirror the target folder's frontmatter, heading levels, list markers, emphasis, and structural density.
 - **Local voice profile**: measure sentence length, punctuation, pronouns, particles, connectors, sentence openers, and rhetorical habits; the agent reads sample notes and completes a qualitative `voice.md`.
