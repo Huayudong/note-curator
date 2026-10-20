@@ -65,6 +65,7 @@ python scripts/check_setup.py --json
 1. 扫库：`python scripts/scan_vault.py --vault "<vault_path>" --out _index.json --max-body 400`（索引含每篇笔记的 `language`）
 2. 初筛：`python scripts/find_duplicates.py --index _index.json --query "<新笔记主题+核心要点>" --top 5`
    - 把要整理的内容（或其主题句）当作 `--query`。默认只在**与查询同语言**的笔记中查重（中文查中文、英文查英文）；明确要跨语言时加 `--lang all`。英文查询自带轻量词形归一（caching/cache/caches 同根）。
+   - **大库或需证据定位时**（B07）：`python scripts/index_vault.py --vault "<vault_path>" --out _index.json --incremental` 建全文分块索引（增量只重建变化的文件），再用 `python scripts/search_notes.py --index _index.json --query "<主题>"` 召回候选——命中附证据块与位置（长文尾部内容也能召回）；跨语言命中经概念桥（language-packs/*/concepts.json）标 `cross_language`。
 3. **语义裁决（你来做）**：脚本只给关键词初筛分数，是否真重复由你结合两篇正文判断。脚本初筛可能漏（尤其中文术语分词），必要时在 `_index.json` 里按关键词人工核查相关笔记：
    - 主题相似度 ≥ `dedup.similarity_threshold`（默认 0.65）→ **命中**，走步骤 3a（合并）。
    - < 阈值 → **未命中**，走步骤 3b（新建）。
@@ -134,6 +135,7 @@ python scripts/check_setup.py --json
 3. **建双链**：按 `references/obsidian-adapter.md` 第 3 节：
    - 用 `_index.json` 里的标题清单做词典，正文出现匹配的已有概念 → 写 `[[标题]]`（标题优先，置信度高）。
    - 标题未命中的核心概念，结合语义判断，置信度 ≥ `backlinks.min_confidence`（默认 0.6）才建链；否则放文末「待关联概念」。
+   - **建链前必须验证（B07）**：草稿写完后运行 `python scripts/link_resolver.py --vault "<vault_path>" --check-draft _note.md`——resolved 才可写入；ambiguous 会给候选路径，按实际含义改写为带路径的链接；broken 一律删掉或改写，不带断链落库。拆分子笔记时先落地目标再用该命令验证，主笔记引用前目标必须 resolved。
 4. **定目录**：按 `config.yaml.taxonomy.rules` 的领域关键词匹配；未命中用 `default_dir`。`confirm_dir: true` 时先问用户。
 5. **生成草稿**：把正文写到 `_note.md`，先不要写盘。
 6. **文风自查**：`python scripts/style_check.py _note.md --profile "<步骤 2.5 的 profile.json>"`
@@ -167,6 +169,9 @@ python scripts/check_setup.py --json
 | `scripts/style_metrics.py` | 文风统计与比较的共享实现（句长、标点、人称、语气词、连接词、排版） | 被下面两个脚本调用 |
 | `scripts/style_profile.py` | 从本地笔记建立/更新文风画像（profile.json + profile.md + voice.md），中英文分别统计（zh 按字、en 按词） | 新建/合并前，或用户要求学习文风时 |
 | `scripts/style_check.py` | 比较草稿与画像，报告明显的风格偏差；`--allow/--ban` 应用用户允许/禁用表达（可来自 config `style.allowed_phrases/banned_phrases`） | 写入前 |
+| `scripts/index_vault.py` | 全文分块索引（标题小节切块、位置比例、别名、语言），增量只重建变化的文件；索引是可重建缓存 | 查重与检索前；大库定期增量更新 |
+| `scripts/search_notes.py` | 分块检索：词项召回 + 证据块定位 + 跨语言概念桥，只给候选不给合并结论 | 查重初筛、找相关知识、判断补充/矛盾 |
+| `scripts/link_resolver.py` | 双链解析与验证：路径/同名消歧/别名/标题锚点/块 ID，broken 与 ambiguous 报告；写入前验证链接（B07） | 草稿建链后、写入前 |
 | `scripts/fact_check.py` | 落库前检查：关键事实保留（数字/日期/限定/否定）、篇幅软预算（超硬上限提示拆分审查）、尾部「相关笔记」清单违规 | 生成草稿后、写入前 |
 | `scripts/resource_pack.py` | 校验/加载语言包（language-packs/zh-CN、en；缺失或损坏时回退内置词表并提示） | 诊断语言包、更新规则后 |
 | `scripts/preferences.py` | 偏好状态机与管理：list/disable/enable/forget/export/import/conflicts；停用可逆，忘记删证据，导出不含原文证据（B06） | 管理个人写作偏好时 |

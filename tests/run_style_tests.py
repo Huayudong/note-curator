@@ -547,6 +547,70 @@ def main():
               pf6["preferences"][0]["status"] == "forgotten",
               str(pf6["preferences"][0]["status"]))
 
+        # --- 16. B07: chunked index, cross-language search, link resolver ---
+        b07_vault = tmp / "b07-vault"
+        (b07_vault / "biancheng").mkdir(parents=True)
+        (b07_vault / "renwen").mkdir()
+        NL2 = chr(10) + chr(10)
+        tail_section = (chr(10).join(["失效时间叠加随机抖动。"] * 30)
+                        + chr(10) + chr(10) + "## 雪崩恢复演练手册"
+                        + chr(10) + chr(10)
+                        + "恢复演练分四步，先降级读库再重建缓存，最后复盘告警阈值。")
+        zh_body = "# 缓存失效" + NL2 + NL2 + "概述穿透击穿雪崩。" + NL2 + tail_section
+        (b07_vault / "biancheng" / "缓存失效.md").write_text(zh_body, encoding="utf-8")
+        en_body = ("# Cache Invalidation" + NL2 + NL2
+                   + "Cache invalidation is hard; avalanche recovery drills rebuild "
+                     "the cache.")
+        (b07_vault / "biancheng" / "cache invalidation.md").write_text(en_body, encoding="utf-8")
+        note_body = ("# 完全不同的标题" + NL2 + NL2 + "## 雪崩小节" + NL2 + NL2
+                     + "内容 ^blk1")
+        (b07_vault / "biancheng" / "笔记.md").write_text(note_body, encoding="utf-8")
+        (b07_vault / "renwen" / "笔记.md").write_text(
+            "# 人文笔记" + NL2 + NL2 + "正文。", encoding="utf-8")
+
+        b07_index = tmp / "b07-index.json"
+        r = run([SCRIPTS / "index_vault.py", "--vault", str(b07_vault),
+                 "--out", str(b07_index), "--json"])
+        check("b07 index built", r.returncode == 0
+              and json.loads(r.stdout)["files"] == 4, r.stdout[:150])
+        r = run([SCRIPTS / "index_vault.py", "--vault", str(b07_vault),
+                 "--out", str(b07_index), "--json", "--incremental"])
+        stats = json.loads(r.stdout)
+        check("b07 incremental unchanged", stats["unchanged"] == 4
+              and stats["updated"] == 0, str(stats))
+
+        r = run([SCRIPTS / "search_notes.py", "--index", str(b07_index),
+                 "--query", "雪崩恢复演练 复盘告警", "--json"])
+        hits = json.loads(r.stdout)
+        check("b07 tail content recall", bool(hits)
+              and hits[0]["path"].endswith("缓存失效.md")
+              and hits[0]["evidence"]["pos_ratio"] > 0.4,
+              json.dumps(hits, ensure_ascii=False)[:200])
+        r = run([SCRIPTS / "search_notes.py", "--index", str(b07_index),
+                 "--query", "缓存失效", "--json"])
+        cross = [h for h in json.loads(r.stdout) if h.get("cross_language")]
+        check("b07 cross-language bridge", bool(cross)
+              and cross[0]["path"].endswith("cache invalidation.md"),
+              json.dumps(cross, ensure_ascii=False)[:200])
+
+        r = run([SCRIPTS / "link_resolver.py", "--vault", str(b07_vault),
+                 "--resolve", "[[笔记]]", "--json"])
+        rep = json.loads(r.stdout)["links"][0]
+        check("b07 ambiguous candidates",
+              rep["status"] == "ambiguous" and len(rep["candidates"]) == 2, str(rep)[:200])
+        r = run([SCRIPTS / "link_resolver.py", "--vault", str(b07_vault),
+                 "--resolve", "[[biancheng/笔记#雪崩小节]]", "--json"])
+        check("b07 heading anchor resolved",
+              json.loads(r.stdout)["links"][0]["status"] == "resolved")
+        draft7 = tmp / "b07-draft.md"
+        draft7.write_text("见 [[biancheng/笔记]] 与 [[人文侧页面]] 与 [[不存在的页]]。",
+                          encoding="utf-8")
+        r = run([SCRIPTS / "link_resolver.py", "--vault", str(b07_vault),
+                 "--check-draft", str(draft7), "--json"])
+        payload = json.loads(r.stdout)
+        check("b07 draft unresolved blocked", payload["unresolved"] >= 2
+              and r.returncode == 1, str(payload)[:250])
+
     print("")
     if FAILURES:
         print("FAILED: %d test(s): %s" % (len(FAILURES), ", ".join(FAILURES)))

@@ -1,0 +1,22 @@
+[
+  {
+    "zh": "缓存失效",
+    "en": "cache invalidation"
+  },
+  {
+    "zh": "缓存雪崩",
+    "en": "cache avalanche"
+  },
+  {
+    "zh": "检索增强生成",
+    "en": "retrieval-augmented generation"
+  },
+  {
+    "zh": "预写日志",
+    "en": "write-ahead logging"
+  },
+  {
+    "zh": "布隆过滤器",
+    "en": "bloom filter"
+  }
+]

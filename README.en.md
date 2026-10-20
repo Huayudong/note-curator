@@ -11,6 +11,8 @@ note-curator is an open-source Agent Skill for Chinese note curation. It fetches
 - **Link or draft → note**: fetch a URL or read a local draft, then produce a structured Chinese note.
 - **Two note types**: knowledge notes for concepts and explanations, experiment notes for setup, method, data, and conclusions.
 - **Vault-wide deduplication**: keyword pre-filter plus semantic judgment before writing; queries are matched within the same language by default, with light English stemming (caching/cache/caches share a root) and title weighting.
+- **Full-text search with evidence (B07)**: `index_vault.py` builds a chunked full-text index with incremental updates; `search_notes.py` returns candidates with evidence chunk and position — tail content of long notes is recallable. Cross-language hits come through concept bridges (flagged `cross_language`, never auto-merged).
+- **Link verification before write (B07)**: `link_resolver.py` resolves wiki links via path / basename disambiguation / aliases / heading anchors / block IDs; ambiguous links get a candidate list and broken links block the write, so every inserted link opens in Obsidian.
 - **Merge instead of duplicate**: append new knowledge, correct only clear errors, preview the diff, then write through a plan → apply → undo transaction.
 - **Write safety**: every write goes through a WritePlan with base-hash conflict checks, atomic replacement, controlled backups, path containment (no absolute paths, `..`, symlink escapes, Windows reserved names, or case-only collisions), an undo command, and a write log.
 - **Obsidian backlinks**: link concepts to existing notes with title-first matching and a confidence threshold; links live where the concept appears in the body — no "Related notes" list at the end.

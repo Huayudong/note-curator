@@ -79,6 +79,20 @@ def _validate_examples(pack_dir, warnings):
                             % lineno)
 
 
+def _validate_concepts(pack_dir, warnings):
+    path = pack_dir / "concepts.json"
+    if not path.is_file():
+        return
+    try:
+        items = json.loads(path.read_text(encoding="utf-8"))
+    except ValueError as exc:
+        warnings.append("concepts.json 无法解析: %s" % exc)
+        return
+    for i, item in enumerate(items):
+        if not {"zh", "en"} <= set(item):
+            warnings.append("concepts.json 第 %d 条缺 zh/en 键" % (i + 1))
+
+
 def validate_pack(pack, lang):
     """返回错误列表；空列表 = 可激活。"""
     errors = []
@@ -126,6 +140,7 @@ def load_pack(lang, root=None):
         return None, ["语言包校验未通过 %s：%s" % (path, "；".join(errors))]
     _validate_terminology(path.parent, warnings)
     _validate_examples(path.parent, warnings)
+    _validate_concepts(path.parent, warnings)
     return pack, warnings
 
 
