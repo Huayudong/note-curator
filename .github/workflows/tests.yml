@@ -26,3 +26,5 @@ jobs:
         run: python tests/run_write_tests.py
       - name: 插件契约测试（B09）
         run: python tests/run_plugin_contract.py
+      - name: 评测纪律测试（B10）
+        run: python tests/run_b10_tests.py

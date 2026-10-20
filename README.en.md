@@ -174,6 +174,17 @@ Update the version in the three plugin manifests and `.claude-plugin/marketplace
 - [OpenAI Model guidance](https://developers.openai.com/api/docs/guides/latest-model) and [lieflat-less-ai-tone](https://github.com/larashero3-dotcom/lieflat-less-ai-tone) — writing-style guidance.
 - [KKKKhazix/human-writing](https://github.com/KKKKhazix/human-writing).
 
-## License
+## Evaluation discipline (B10)
+
+The frozen eval set lives in `evals/` (physically separated from dev fixtures; source
+hashes are locked and any change refuses to run). `run_eval.py` emits per-task
+fact-retention/length/tail-list reports with pack and context-layer versions
+(`--layers` for the public / +profile / +prefs ablation); `--sabotage` demonstrates
+defect capture. Blind voting: `blind_compare.py` (directional preference rate with a
+Wilson interval, ties reported separately, >60% is only an exploration threshold).
+User feedback: `feedback.py` stays local by default and can convert into pending eval
+tasks. No default strategy changed because of evaluation results.
+
+## License## License
 
 [MIT](LICENSE)

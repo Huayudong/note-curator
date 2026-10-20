@@ -1,0 +1,64 @@
+{
+  "schema": 1,
+  "frozen_at": "2026-10-20T18:48:10",
+  "tasks": [
+    {
+      "id": "zh-technical",
+      "source": "zh-technical.md",
+      "lang": "zh",
+      "register": "technical"
+    },
+    {
+      "id": "zh-reading",
+      "source": "zh-reading.md",
+      "lang": "zh",
+      "register": "reading"
+    },
+    {
+      "id": "zh-experiment",
+      "source": "zh-experiment.md",
+      "lang": "zh",
+      "register": "experiment"
+    },
+    {
+      "id": "zh-retrospective",
+      "source": "zh-retrospective.md",
+      "lang": "zh",
+      "register": "retrospective"
+    },
+    {
+      "id": "en-technical",
+      "source": "en-technical.md",
+      "lang": "en",
+      "register": "technical"
+    },
+    {
+      "id": "en-reading",
+      "source": "en-reading.md",
+      "lang": "en",
+      "register": "reading"
+    },
+    {
+      "id": "en-experiment",
+      "source": "en-experiment.md",
+      "lang": "en",
+      "register": "experiment"
+    },
+    {
+      "id": "en-retrospective",
+      "source": "en-retrospective.md",
+      "lang": "en",
+      "register": "retrospective"
+    }
+  ],
+  "sources": {
+    "zh-technical.md": "0d0c38aa741c14a4c84c49c4918f1604a39cf34892079c2e2958284ba73e40ab",
+    "zh-reading.md": "fd8da514ed7dc5ce4d45c512904040df8b294982b30419f61a84113fe966e016",
+    "zh-experiment.md": "c93abe09f824f02428f367d2b3629c6a0e9ab11e52b5e60b113d0c1b8641505d",
+    "zh-retrospective.md": "1641fc6c6cebc0546b07c1dd1664ece254e477bcf4f23e14542057e767ab079c",
+    "en-technical.md": "ccf89fe618b8fca6f7fb515e09fe3ecbc9898d3dd4321fc249b32d37a726bd2d",
+    "en-reading.md": "0217c8a5533fe572c633a4b0113ac6e4af0f58f636a9bfa9ff3c710df8a79e40",
+    "en-experiment.md": "706c4cfb05fd3b28a303346641b15e87d9f4da895b0d13a003dd417a2443abf0",
+    "en-retrospective.md": "9e13db15b2af72d8de11b3b1d43829437c37c674b2db3b5810fa6af4f4b3580a"
+  }
+}

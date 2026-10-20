@@ -206,6 +206,15 @@ python plugins/note-curator/skills/note-curator/scripts/style_check.py \
 - [OpenAI《Model guidance》](https://developers.openai.com/api/docs/guides/latest-model) 与 [lieflat-less-ai-tone](https://github.com/larashero3-dotcom/lieflat-less-ai-tone) —— 写作风格指导。
 - [KKKKhazix/human-writing](https://github.com/KKKKhazix/human-writing)。
 
-## License
+## 评测纪律（B10）
+
+冻结评测集在 `evals/`（与开发夹具物理隔离，来源哈希锁定，改动即拒绝执行）；
+`run_eval.py` 输出逐任务事实保留/篇幅/尾部清单报告并记录语言包与上下文层版本
+（`--layers` 支持公共规则 / +画像 / +偏好三档消融）；`--sabotage` 演示缺陷捕获。
+盲评计票 `blind_compare.py`（方向偏好率 + Wilson 区间，平局另报，>60% 仅为
+探索门槛）。用户反馈 `feedback.py` 默认只存本地，可转为待办评测任务。
+新策略成为默认必须先有报告且硬约束通过；当前默认策略未因评测改变。
+
+## License## License
 
 [MIT](LICENSE)

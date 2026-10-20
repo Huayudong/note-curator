@@ -1,0 +1,106 @@
+{
+  "schema": 1,
+  "run_id": "20261020-184810",
+  "provider": "mock",
+  "layers": [
+    "public",
+    "profile",
+    "prefs"
+  ],
+  "pack_version": "1.0.0",
+  "tasks_passed": 8,
+  "tasks_total": 8,
+  "pass_rate": 1.0,
+  "mean_retention": 1.0,
+  "frozen_manifest": "E:\\program\\note-curator\\evals\\tasks\\frozen-v1.json",
+  "results": [
+    {
+      "id": "zh-technical",
+      "pass": true,
+      "facts_total": 9,
+      "missing_facts": [],
+      "retention_ratio": 1.0,
+      "tail_violation": false,
+      "needs_split_review": false,
+      "draft_chars": 156,
+      "draft": "E:\\program\\note-curator\\evals\\reports\\tmp-20261020-184810\\zh-technical.md"
+    },
+    {
+      "id": "zh-reading",
+      "pass": true,
+      "facts_total": 3,
+      "missing_facts": [],
+      "retention_ratio": 1.0,
+      "tail_violation": false,
+      "needs_split_review": false,
+      "draft_chars": 88,
+      "draft": "E:\\program\\note-curator\\evals\\reports\\tmp-20261020-184810\\zh-reading.md"
+    },
+    {
+      "id": "zh-experiment",
+      "pass": true,
+      "facts_total": 15,
+      "missing_facts": [],
+      "retention_ratio": 1.0,
+      "tail_violation": false,
+      "needs_split_review": false,
+      "draft_chars": 237,
+      "draft": "E:\\program\\note-curator\\evals\\reports\\tmp-20261020-184810\\zh-experiment.md"
+    },
+    {
+      "id": "zh-retrospective",
+      "pass": true,
+      "facts_total": 11,
+      "missing_facts": [],
+      "retention_ratio": 1.0,
+      "tail_violation": false,
+      "needs_split_review": false,
+      "draft_chars": 168,
+      "draft": "E:\\program\\note-curator\\evals\\reports\\tmp-20261020-184810\\zh-retrospective.md"
+    },
+    {
+      "id": "en-technical",
+      "pass": true,
+      "facts_total": 9,
+      "missing_facts": [],
+      "retention_ratio": 1.0,
+      "tail_violation": false,
+      "needs_split_review": false,
+      "draft_chars": 40,
+      "draft": "E:\\program\\note-curator\\evals\\reports\\tmp-20261020-184810\\en-technical.md"
+    },
+    {
+      "id": "en-reading",
+      "pass": true,
+      "facts_total": 3,
+      "missing_facts": [],
+      "retention_ratio": 1.0,
+      "tail_violation": false,
+      "needs_split_review": false,
+      "draft_chars": 30,
+      "draft": "E:\\program\\note-curator\\evals\\reports\\tmp-20261020-184810\\en-reading.md"
+    },
+    {
+      "id": "en-experiment",
+      "pass": true,
+      "facts_total": 19,
+      "missing_facts": [],
+      "retention_ratio": 1.0,
+      "tail_violation": false,
+      "needs_split_review": false,
+      "draft_chars": 49,
+      "draft": "E:\\program\\note-curator\\evals\\reports\\tmp-20261020-184810\\en-experiment.md"
+    },
+    {
+      "id": "en-retrospective",
+      "pass": true,
+      "facts_total": 8,
+      "missing_facts": [],
+      "retention_ratio": 1.0,
+      "tail_violation": false,
+      "needs_split_review": false,
+      "draft_chars": 37,
+      "draft": "E:\\program\\note-curator\\evals\\reports\\tmp-20261020-184810\\en-retrospective.md"
+    }
+  ]
+}
