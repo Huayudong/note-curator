@@ -9,6 +9,7 @@ note-curator is an open-source Agent Skill for Chinese note curation. It fetches
 ## Features
 
 - **Link or draft → note**: fetch a URL or read a local draft, then produce a structured Chinese note.
+- **Source integrity and honesty (B08)**: a unified SourceDocument pipeline — URL/file → structured segments (tables and code kept in order) → seven extraction statuses (truncated / login wall / dynamic page / short body / missing pagination / missing table / fetch failure); incomplete sources ask for more material instead of pretending to be read; source content is data, never executed; URL normalization + content fingerprints detect duplicates and updates.
 - **Two note types**: knowledge notes for concepts and explanations, experiment notes for setup, method, data, and conclusions.
 - **Vault-wide deduplication**: keyword pre-filter plus semantic judgment before writing; queries are matched within the same language by default, with light English stemming (caching/cache/caches share a root) and title weighting.
 - **Full-text search with evidence (B07)**: `index_vault.py` builds a chunked full-text index with incremental updates; `search_notes.py` returns candidates with evidence chunk and position — tail content of long notes is recallable. Cross-language hits come through concept bridges (flagged `cross_language`, never auto-merged).

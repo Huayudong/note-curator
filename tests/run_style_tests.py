@@ -611,6 +611,62 @@ def main():
         check("b07 draft unresolved blocked", payload["unresolved"] >= 2
               and r.returncode == 1, str(payload)[:250])
 
+        # --- 17. B08: SourceDocument pipeline, statuses, dedup ---
+        fx = REPO_ROOT / "tests" / "fixtures" / "html"
+        article = fx / "article.html"
+        r = run([SCRIPTS / "source_document.py", "from-file", str(article)])
+        doc = json.loads(r.stdout)
+        check("b08 from-file complete", r.returncode == 0
+              and doc["extraction"]["status"] == "complete", str(doc["extraction"]))
+        check("b08 table+code stats", doc["stats"]["tables"] == 1
+              and doc["stats"]["code_blocks"] == 1, str(doc["stats"]))
+        doc8 = tmp / "b08-doc.json"
+        doc8.write_text(json.dumps(doc, ensure_ascii=False), encoding="utf-8")
+        r = run([SCRIPTS / "source_document.py", "check", str(doc8)])
+        check("b08 check complete rc0", r.returncode == 0, "rc=%s" % r.returncode)
+
+        r = run([SCRIPTS / "source_document.py", "from-url", article.as_uri()])
+        docu = json.loads(r.stdout)
+        check("b08 from-url file scheme", r.returncode == 0
+              and docu["kind"] == "url"
+              and docu["source_normalized"].startswith("file:///"),
+              str(docu.get("extraction")))
+        docu8 = tmp / "b08-doc-url.json"
+        docu8.write_text(json.dumps(docu, ensure_ascii=False), encoding="utf-8")
+
+        r = run([SCRIPTS / "source_document.py", "from-file",
+                 str(fx / "wall.html")])
+        docw = json.loads(r.stdout)
+        check("b08 login wall failed", docw["extraction"]["status"] == "failed"
+              and "login_wall" in docw["extraction"]["issues"],
+              str(docw["extraction"]))
+        r = run([SCRIPTS / "source_document.py", "from-file", str(article),
+                 "--max-chars", "40"])
+        doct = json.loads(r.stdout)
+        check("b08 truncated flagged",
+              "truncated" in doct["extraction"]["issues"], str(doct["extraction"]))
+
+        r = run([SCRIPTS / "source_document.py", "normalize-url",
+                 "https://Example.com/a/?utm_source=x&id=3&spm=1#f"])
+        check("b08 normalize url", r.stdout.strip() == "https://example.com/a?id=3",
+              r.stdout.strip())
+        r = run([SCRIPTS / "source_document.py", "register", "--doc", str(docu8)])
+        check("b08 register rc0", r.returncode == 0, r.stdout[:60])
+        r = run([SCRIPTS / "source_document.py", "lookup", "--url",
+                 str(docu["source_normalized"])])
+        check("b08 lookup hit", r.returncode == 0
+              and "缓存实战笔记" in r.stdout, r.stdout[:100])
+        r = run([SCRIPTS / "source_document.py", "register", "--doc", str(docu8)])
+        check("b08 register same rc2", r.returncode == 2, "rc=%s" % r.returncode)
+
+        r = run([SCRIPTS / "source_document.py", "from-file",
+                 str(fx / "evil.html")])
+        doce = json.loads(r.stdout)
+        check("b08 script stripped",
+              "stealSecrets" not in json.dumps(doce, ensure_ascii=False))
+        check("b08 body text inert",
+              any("读取密钥" in s["text"] for s in doce["segments"]))
+
     print("")
     if FAILURES:
         print("FAILED: %d test(s): %s" % (len(FAILURES), ", ".join(FAILURES)))

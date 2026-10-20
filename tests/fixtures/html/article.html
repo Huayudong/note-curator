@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>缓存实战笔记</title>
+</head>
+<body>
+  <article>
+    <h1>缓存实战</h1>
+    <p>缓存能减少数据库压力，但失效策略决定一致性上界。</p>
+    <p>读写穿透与击穿的成因不同，处理方式也不同。</p>
+    <p>雪崩需要把失效时间摊开，叠加随机抖动。</p>
+    <p>多级缓存的层级越多，失效路径也越长，需要有整体的失效视图。</p>
+    <p>压测时应当模拟穿透、击穿与雪崩三种故障，验证降级链路。</p>
+    <p>监控上除了命中率，还要看回源 QPS 的尖刺。</p>
+    <p>这些结论来自一次线上复盘，供后续压测对照使用。</p>
+    <table>
+      <tr><th>参数</th><th>值</th></tr>
+      <tr><td>TTL</td><td>60s</td></tr>
+      <tr><td>maxmemory</td><td>4GB</td></tr>
+    </table>
+    <pre>cache.set("k", "v", ttl=60)</pre>
+    <blockquote>引用一段原始观点：失效策略要与业务容忍度对齐。</blockquote>
+  </article>
+</body>
+</html>
