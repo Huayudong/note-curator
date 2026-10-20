@@ -108,6 +108,54 @@ def main():
     result["counts"] = {"major": major, "minor": minor,
                         "info": len(result["findings"]) - major - minor}
 
+    # B06-04：active 且启用的偏好参与生成端检查（作用域限定语言）
+    for pref in profile.get("preferences", []):
+        if pref.get("status") != "active" or pref.get("enabled") is False:
+            continue
+        if pref.get("scope", {}).get("language") != profile.get("language", "zh"):
+            continue
+        value = pref.get("value", {})
+        if pref.get("type") == "avoid_phrase" and value.get("phrase"):
+            group = value.get("tell_group")
+            hit_detail = None
+            if group:
+                import re as _re2
+                from style_metrics import get_pack
+                pattern = getattr(get_pack(profile.get("language", "zh")),
+                                  "AI_TELL_PATTERNS", {}).get(group)
+                if pattern:
+                    m = _re2.search(pattern, draft_text)
+                    if m:
+                        hit_detail = "「%s」类（%s）" % (group, m.group(0)[:30])
+            if hit_detail is None and value["phrase"] in draft_text:
+                hit_detail = value["phrase"]
+            if hit_detail:
+                result["findings"].insert(0, {
+                    "category": "用户偏好",
+                    "severity": "minor",
+                    "message": "你此前删除过的表达再次出现：%s" % hit_detail,
+                    "expected": 0, "actual": 1,
+                    "from_preference": pref["id"],
+                })
+        elif pref.get("type") == "sentence_length" and value.get("direction"):
+            direction = value["direction"]
+            sl = draft_metrics.get("sentence_length", {})
+            mean = sl.get("mean", 0)
+            unit = "字" if profile.get("language", "zh") == "zh" else "words"
+            if direction == "shorter" and mean > sl.get("count", 0) and                     profile.get("metrics", {}).get("sentence_length", {}).get("mean", 0) and                     mean > profile["metrics"]["sentence_length"].get("mean", 0):
+                result["findings"].append({
+                    "category": "用户偏好", "severity": "info",
+                    "message": "你偏好更短句子（改稿证据），草稿平均句长 %.0f %s 高于画像"
+                               % (mean, unit),
+                    "expected": profile["metrics"]["sentence_length"].get("mean", 0),
+                    "actual": mean,
+                    "from_preference": pref["id"],
+                })
+    major = sum(1 for f in result["findings"] if f["severity"] == "major")
+    minor = sum(1 for f in result["findings"] if f["severity"] == "minor")
+    result["counts"] = {"major": major, "minor": minor,
+                        "info": len(result["findings"]) - major - minor}
+
     result["draft"] = str(draft_path)
     result["profile"] = str(profile_path)
     result["draft_language"] = draft_metrics.get("language")

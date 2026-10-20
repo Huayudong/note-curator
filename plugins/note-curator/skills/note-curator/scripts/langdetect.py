@@ -59,10 +59,16 @@ def _ratio_to_lang(cjk, latin):
 
 
 def detect_language(text):
-    """返回 "zh" / "en" / "und"。兼容入口：空文本默认 zh（历史行为）。"""
+    """返回 "zh" / "en"。兼容入口：沿用历史语义，不做最短长度判定
+    （undetermined 只出现在 detect_language_detail；空文本默认 zh）。"""
     if not text or not text.strip():
         return "zh"
-    return _ratio_to_lang(len(CJK_RE.findall(text)), len(LATIN_RE.findall(text)))
+    cjk = len(CJK_RE.findall(text))
+    latin = len(LATIN_RE.findall(text))
+    total = cjk + latin
+    if total == 0:
+        return "zh"
+    return "zh" if cjk / total >= ZH_THRESHOLD else "en"
 
 
 def detect_language_detail(text):

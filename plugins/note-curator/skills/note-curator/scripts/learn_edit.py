@@ -52,27 +52,48 @@ def now_iso():
     return datetime.datetime.now().isoformat(timespec="seconds")
 
 
+def _para_split(text):
+    pat = chr(92) + "n" + chr(92) + "s*" + chr(92) + "n"
+    return [q for q in re.split(pat, text) if q.strip()]
+
+
+def _without_ws(text):
+    return re.sub(chr(91) + chr(92) + "s" + chr(93) + "+", "", text)
+
+
+WHY = {"fact": "数字或否定变化", "structure": "标题层级变化",
+       "formatting": "仅空白或标点变化", "content": "段落增删",
+       "expression": "措辞调整"}
+
+
 def classify(before, after):
-    """返回 (category, details)。确定性启发式，不确定时保守归类。"""
+    """返回 (类别列表, 说明)。事实信号优先；混合改稿并列多类（B06）。"""
+    cats = []
     if NUMBER_RE.findall(before) != NUMBER_RE.findall(after):
-        return "fact", "数字或单位变化"
+        cats.append("fact")
     if bool(NEG_RE.search(before)) != bool(NEG_RE.search(after)):
-        return "fact", "否定语义变化"
-    heads_b = HEADING_RE.findall(before)
-    heads_a = HEADING_RE.findall(after)
-    if heads_b != heads_a:
-        return "structure", "标题层级变化"
-    strip_b = re.sub(r"\s+", "", before)
-    strip_a = re.sub(r"\s+", "", after)
-    if strip_b == strip_a:
-        return "formatting", "仅空白或标点变化"
-    if FORMAT_ONLY_RE.match(before) and FORMAT_ONLY_RE.match(after):
-        return "formatting", "排版行调整"
-    paras_b = len([p for p in re.split(r"\n\s*\n", before) if p.strip()])
-    paras_a = len([p for p in re.split(r"\n\s*\n", after) if p.strip()])
-    if paras_b != paras_a:
-        return "content", "段落增删"
-    return "expression", "措辞调整"
+        if "fact" not in cats:
+            cats.append("fact")
+    if HEADING_RE.findall(before) != HEADING_RE.findall(after):
+        cats.append("structure")
+    if _without_ws(before) == _without_ws(after):
+        cats.append("formatting")
+    elif FORMAT_ONLY_RE.match(before) and FORMAT_ONLY_RE.match(after):
+        cats.append("formatting")
+    else:
+        paras_b = len(_para_split(before))
+        paras_a = len(_para_split(after))
+        if paras_b != paras_a:
+            cats.append("content")
+        elif not cats or _without_numbers(before) != _without_numbers(after):
+            cats.append("expression")
+    if not cats:
+        cats.append("expression")
+    return cats, "、".join(WHY.get(c, c) for c in cats)
+
+
+def _without_numbers(text):
+    return re.sub(NUMBER_RE, "", _without_ws(text))
 
 
 def load_profile(path):
@@ -98,12 +119,14 @@ def base_text_for(profile_path, profile, note_path, baseline_run=None):
 def extract_expression_candidates(before, after, lang):
     """从表达类差异提炼候选：被删除的 AI 腔短语、句长方向。"""
     candidates = []
-    removed = [line for line in after if line not in before]
-    del removed[0:0]
     removed_lines = [l for l in before.splitlines() if l and l not in after.splitlines()]
+    seen_groups = set()
     for line in removed_lines:
         for group, pattern in AI_TELL_PATTERNS.items():
+            if group in seen_groups:
+                continue
             if re.search(pattern, line):
+                seen_groups.add(group)
                 candidates.append({
                     "type": "avoid_phrase",
                     "phrase": line.strip()[:60],
@@ -153,9 +176,10 @@ def cmd_diff(args):
             continue
         before = "\n".join(base.splitlines()[i1:i2])
         after = "\n".join(current.splitlines()[j1:j2])
-        cat, why = classify(before, after)
-        categories[cat] = categories.get(cat, 0) + 1
-        changes.append({"category": cat, "why": why,
+        cats, why = classify(before, after)
+        for cat in cats:
+            categories[cat] = categories.get(cat, 0) + 1
+        changes.append({"category": "+".join(cats), "why": why,
                         "before_excerpt": before.strip()[:80],
                         "after_excerpt": after.strip()[:80]})
 
@@ -178,6 +202,12 @@ def cmd_diff(args):
     }
     for i, c in enumerate(pref_candidates, 1):
         c["candidate_id"] = "%s#%d" % (event_id, i)
+    mode = profile.get("learning_mode", "explicit")
+    if mode == "off":
+        print("[STOP] 学习已关闭（config style.learning_mode: off），本次改稿不记录。",
+              file=sys.stderr)
+        sys.exit(2)
+
     events = profile.setdefault("learning_events", [])
     for e in events:
         if e.get("base_hash") == event["base_hash"] and \
@@ -187,6 +217,42 @@ def cmd_diff(args):
             sys.exit(2)
     events.append(event)
     profile["learning_events"] = events[-50:]
+
+    # B06-01：auto 模式下，跨 ≥2 篇独立笔记的同类表达候选自动生效
+    if mode == "auto":
+        per_key = {}
+        for e in events:
+            if e.get("undone"):
+                continue
+            for c in e.get("candidates", []):
+                if c.get("status") in ("rejected", "undone"):
+                    continue
+                key = (c.get("type"),
+                       c.get("tell_group") or c.get("phrase") or c.get("direction"))
+                per_key.setdefault(key, {"notes": set(), "refs": []})
+                per_key[key]["notes"].add(e.get("note", ""))
+                per_key[key]["refs"].append((e, c))
+        for key, info in per_key.items():
+            if len(info["notes"]) >= 2:
+                e0, c0 = info["refs"][0]
+                prefs = profile.setdefault("preferences", [])
+                if not any(p.get("type") == c0.get("type")
+                           and p.get("value", {}).get("phrase") == c0.get("phrase")
+                           for p in prefs):
+                    prefs.append({
+                        "id": nc_core.new_run_id(),
+                        "type": c0.get("type"),
+                        "value": {k: v for k, v in c0.items()
+                                  if k not in ("_event", "candidate_id", "status")},
+                        "scope": {"language": profile.get("language", "zh"),
+                                  "source_event": e0.get("event_id")},
+                        "status": "active",
+                        "evidence": len(info["notes"]),
+                        "auto_confirmed": True,
+                        "created_at": now_iso(),
+                    })
+                    print("[AUTO] 证据达标（%d 篇独立笔记），已自动生效：%s"
+                          % (len(info["notes"]), c0.get("type")), file=sys.stderr)
     revs = profile.setdefault("revisions", {})
     rel = str(note)
     revs[rel] = {"hash": event["new_hash"],

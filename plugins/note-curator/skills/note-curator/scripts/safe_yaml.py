@@ -273,7 +273,8 @@ SCHEMA = {
               "learn_from_vault": bool, "profile_sample": int,
               "language": str, "profile_dir": str, "check_before_write": bool,
               "output_language": str,
-              "allowed_phrases": list, "banned_phrases": list},
+              "allowed_phrases": list, "banned_phrases": list,
+              "learning_mode": str},
 }
 
 TYPE_NAMES = {str: "字符串", bool: "布尔值", list: "列表", int: "整数",

@@ -490,6 +490,63 @@ def main():
                  "--event", ev5["event_id"]])
         check("b05 re-undo idempotent rc2", r.returncode == 2, "rc=%s" % r.returncode)
 
+        # --- 15. B06: learning modes, preference state machine, apply ---
+        b06_src = tmp / "b06"
+        b06_src.mkdir()
+        d6 = tmp / "d6.md"
+        d6.write_text("值得注意的是，缓存至关重要。综上所述，我们首先设置 TTL。", encoding="utf-8")
+        r = run([SCRIPTS / "write_note.py", "new", "--vault", str(b06_src),
+                 "--dir", "notes", "--title", "n1", "--file", str(d6),
+                 "--json", "--apply"])
+        rid6 = json.loads(r.stdout)["run_id"]
+        n1 = b06_src / "notes" / "n1.md"
+        n1.write_text("改好的正文，直接讲结论，没有套话。", encoding="utf-8")
+        r = run([SCRIPTS / "learn_edit.py", "diff", "--profile", str(zh2_profile),
+                 "--note", str(n1), "--baseline-run", rid6, "--json"])
+        check("b06 explicit default diff rc0", r.returncode == 0, r.stderr[-200:])
+        r = run([SCRIPTS / "learn_edit.py", "diff", "--profile", str(zh2_profile),
+                 "--note", str(n1), "--baseline-run", rid6, "--json"])
+        check("b06 re-diff idempotent rc2", r.returncode == 2, "rc=%s" % r.returncode)
+
+        pf6 = json.loads(zh2_profile.read_text(encoding="utf-8"))
+        pf6["learning_mode"] = "auto"
+        zh2_profile.write_text(json.dumps(pf6, ensure_ascii=False), encoding="utf-8")
+        d7 = tmp / "d7.md"
+        d7.write_text("值得注意的是，延迟也很关键。总而言之，我们要加监控。", encoding="utf-8")
+        r = run([SCRIPTS / "write_note.py", "new", "--vault", str(b06_src),
+                 "--dir", "notes", "--title", "n2", "--file", str(d7),
+                 "--json", "--apply"])
+        rid7 = json.loads(r.stdout)["run_id"]
+        n2 = b06_src / "notes" / "n2.md"
+        n2.write_text("改好的正文，直接讲结论，没有套话。", encoding="utf-8")
+        r = run([SCRIPTS / "learn_edit.py", "diff", "--profile", str(zh2_profile),
+                 "--note", str(n2), "--baseline-run", rid7, "--json"])
+        check("b06 auto diff rc0", r.returncode == 0, r.stderr[-200:])
+        pf6 = json.loads(zh2_profile.read_text(encoding="utf-8"))
+        auto = [p for p in pf6.get("preferences", []) if p.get("auto_confirmed")]
+        check("b06 auto confirmed with evidence",
+              len(auto) == 1 and auto[0]["evidence"] >= 2, str(pf6.get("preferences"))[:200])
+
+        chk = tmp / "chk6.md"
+        chk.write_text("值得注意的是，缓存依然至关重要。", encoding="utf-8")
+        r = run([SCRIPTS / "style_check.py", chk, "--profile", zh2_profile, "--json"])
+        hits = [f for f in json.loads(r.stdout)["findings"] if f.get("from_preference")]
+        check("b06 preference applies", len(hits) >= 1, str(hits)[:150])
+        pid6 = auto[0]["id"]
+        r = run([SCRIPTS / "preferences.py", "disable", "--profile", zh2_profile,
+                 "--pref", pid6, "--reason", "暂停"])
+        check("b06 disable rc0", r.returncode == 0, r.stderr[-150:])
+        r = run([SCRIPTS / "style_check.py", chk, "--profile", zh2_profile, "--json"])
+        hits2 = [f for f in json.loads(r.stdout)["findings"] if f.get("from_preference")]
+        check("b06 disabled silent", not hits2, str(hits2)[:150])
+        r = run([SCRIPTS / "preferences.py", "forget", "--profile", zh2_profile,
+                 "--pref", pid6])
+        check("b06 forget rc0", r.returncode == 0, r.stderr[-150:])
+        pf6 = json.loads(zh2_profile.read_text(encoding="utf-8"))
+        check("b06 forgotten status",
+              pf6["preferences"][0]["status"] == "forgotten",
+              str(pf6["preferences"][0]["status"]))
+
     print("")
     if FAILURES:
         print("FAILED: %d test(s): %s" % (len(FAILURES), ", ".join(FAILURES)))

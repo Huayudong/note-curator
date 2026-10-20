@@ -97,3 +97,7 @@ style:
   # banned_phrases 出现即提示。二者优先于语言包默认规则。
   allowed_phrases: []
   banned_phrases: []
+  # 改稿学习模式（B06-01）：off=不学习；explicit=用户点「学习这次修改」才学（默认）；
+  # assisted=汇总候选待批量确认；auto=满足证据门槛（≥2 篇独立笔记的表达类候选）
+  # 才自动生效，事实类与冲突候选仍进待确认。
+  learning_mode: explicit
