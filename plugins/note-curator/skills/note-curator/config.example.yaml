@@ -92,3 +92,8 @@ style:
   profile_dir: "~/.note-curator/style-profiles"
   # 写入前是否运行 style_check.py 做一次风格偏差检查。
   check_before_write: true
+  # 用户允许/禁用表达（B03-07）：style_check.py --allow/--ban 可从配置带入。
+  # allowed_phrases 命中的提示会被忽略（个人口头禅、已确认的用法）；
+  # banned_phrases 出现即提示。二者优先于语言包默认规则。
+  allowed_phrases: []
+  banned_phrases: []

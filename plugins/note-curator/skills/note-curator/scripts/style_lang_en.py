@@ -73,6 +73,12 @@ RHETORIC_PATTERNS = {
     "transition": r"\bhowever\b|\bbut\b|\balthough\b|\bthough\b|\byet\b|\bactually\b",
 }
 
+AI_TELL_PATTERNS = {
+    "summary prelude": r"in conclusion|in summary|it is worth noting that|it should be noted that",
+    "reveal dash": r"here's the (?:thing|kicker)",
+    "hollow booster": r"hugely|massively|game-changer",
+}
+
 STOPWORDS = set("""
 the a an of to in on is are was were be been being for and with that this these those
 it its as by at from or but not no nor so if then than there here what which who whom
@@ -179,3 +185,32 @@ def lexical(text):
 def metrics_extras(text, size):
     """英文暂无深化特征；接口与中文包对齐，返回空。"""
     return {}
+
+
+def _apply_pack():
+    """B03-02: load the structured language pack over the built-in lists;
+    fall back silently to built-ins when the pack is missing or corrupt."""
+    try:
+        from resource_pack import load_pack
+    except Exception:
+        return
+    try:
+        pack, warnings = load_pack("en")
+    except Exception:
+        return
+    if pack is None:
+        return
+    import sys
+    for w in warnings:
+        print("[PACK] %s" % w, file=sys.stderr)
+    terms = pack.get("terms", {})
+    PARTICLES[:] = terms.get("particles") or PARTICLES
+    HEDGES[:] = terms.get("hedges") or HEDGES
+    BOOSTERS[:] = terms.get("boosters") or BOOSTERS
+    CONNECTORS[:] = terms.get("connectors") or CONNECTORS
+    if terms.get("ai_tell_patterns"):
+        AI_TELL_PATTERNS.clear()
+        AI_TELL_PATTERNS.update(terms["ai_tell_patterns"])
+
+
+_apply_pack()

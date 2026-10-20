@@ -1,0 +1,17 @@
+[
+  {
+    "term": "检索增强生成",
+    "abbr": "RAG",
+    "first_mention": "检索增强生成（RAG）"
+  },
+  {
+    "term": "存活时间",
+    "abbr": "TTL",
+    "first_mention": "存活时间（TTL）"
+  },
+  {
+    "term": "预写日志",
+    "abbr": "WAL",
+    "first_mention": "预写日志（WAL）"
+  }
+]

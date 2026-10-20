@@ -194,3 +194,35 @@ def metrics_extras(text, size):
         "ai_tells": count_patterns(text, AI_TELL_PATTERNS, size),
         "latin_per_1000": per_1000(latin_words, size),
     }
+
+
+def _apply_pack():
+    """B03-02：加载结构化语言包覆盖内置词表；包缺失/损坏时静默回退内置值。"""
+    try:
+        from resource_pack import load_pack
+    except Exception:
+        return
+    try:
+        pack, warnings = load_pack("zh")
+    except Exception:
+        return
+    if pack is None:
+        return
+    import sys
+    for w in warnings:
+        print("[PACK] %s" % w, file=sys.stderr)
+    terms = pack.get("terms", {})
+    PARTICLES[:] = terms.get("particles") or PARTICLES
+    HEDGES[:] = terms.get("hedges") or HEDGES
+    BOOSTERS[:] = terms.get("boosters") or BOOSTERS
+    CONNECTORS[:] = terms.get("connectors") or CONNECTORS
+    COLLOQUIAL_TERMS[:] = terms.get("colloquial") or COLLOQUIAL_TERMS
+    if terms.get("ai_tell_patterns"):
+        AI_TELL_PATTERNS.clear()
+        AI_TELL_PATTERNS.update(terms["ai_tell_patterns"])
+    if terms.get("construction_patterns"):
+        CONSTRUCTION_PATTERNS.clear()
+        CONSTRUCTION_PATTERNS.update(terms["construction_patterns"])
+
+
+_apply_pack()

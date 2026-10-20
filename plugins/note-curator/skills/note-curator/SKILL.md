@@ -156,7 +156,8 @@ python scripts/check_setup.py --json
 | `scripts/analyze_style.py` | 分析目录/笔记的排版风格，输出风格摘要供模仿 | 新建笔记前，对目标目录跑一次 |
 | `scripts/style_metrics.py` | 文风统计与比较的共享实现（句长、标点、人称、语气词、连接词、排版） | 被下面两个脚本调用 |
 | `scripts/style_profile.py` | 从本地笔记建立/更新文风画像（profile.json + profile.md + voice.md），中英文分别统计（zh 按字、en 按词） | 新建/合并前，或用户要求学习文风时 |
-| `scripts/style_check.py` | 比较草稿与画像，报告明显的风格偏差 | 写入前 |
+| `scripts/style_check.py` | 比较草稿与画像，报告明显的风格偏差；`--allow/--ban` 应用用户允许/禁用表达（可来自 config `style.allowed_phrases/banned_phrases`） | 写入前 |
+| `scripts/resource_pack.py` | 校验/加载语言包（language-packs/zh-CN、en；缺失或损坏时回退内置词表并提示） | 诊断语言包、更新规则后 |
 | `scripts/style_learn.py` | 把用户改过的笔记并入现有画像（按样本时间的滚动窗口、语言校验、历史留痕），实现持续学习 | 用户说「学习这篇的写法 / 更新我的文风」时 |
 | `scripts/fetch_url.py` | 抓取 URL 正文，输出清洗纯文本 | 链接模式第一步；失败则改用 Agent 的网页工具 |
 | `scripts/write_note.py` | 写入 vault 事务：`new`/`merge` 默认预览，`--apply` 或 `apply --run <run_id>` 提交，`undo --run` 撤销，`log` 看记录，`prune` 清理；基线冲突检查、原子写入、受控备份、路径安全、生成基线 | 最后落库 |
@@ -170,6 +171,8 @@ python scripts/check_setup.py --json
 - **查重先于新建**：每篇新笔记落库前都必须查重；命中旧笔记优先合并补充，不能另建重复笔记。
 - **合并优先增、有错才改**：默认 `append` 追加；只有原内容确有错误/过时才用 `edit` 改写，且不要为「换个说法」而改写作者原有措辞——包括不因去 AI 味而改写旧笔记。
 - **追加片段也是写作**：合并新增的内容按人话守则写成与旧笔记融为一体的中文，不是原文摘抄。
+- **术语首现带全称（B03-08）**：中文术语首现用「中文名（英文缩写）」格式，如「检索增强生成（RAG）」；英文用 full term (ABBR)。之后可只用缩写；用户词表（language-packs/*/terminology.json 与个人配置）优先于默认写法。
+- **用户允许/禁用项优先（B03-07）**：config `style.allowed_phrases` 命中的提示忽略，`banned_phrases` 出现即提示；用户已确认的表达优先于语言包默认规则。
 - **frontmatter 三字段铁律**：只有 `author`/`created`/`tags`，不多不少；`tags` 最多 3 个且每个都必须概括本篇内容（不放「知识」「笔记」这类零信息量标签）；合并时 frontmatter 一字不动，来源留痕写正文文末。
 - **新建必学排版**：新建前用 `analyze_style.py` 看同目录风格并模仿，保持知识库排版一致。
 - **文风画像只对齐表达**：语气、句长、用词、标点、段落节奏向画像靠拢；事实、术语、数据、观点归属仍以原文为准，不能为了像而改写事实。

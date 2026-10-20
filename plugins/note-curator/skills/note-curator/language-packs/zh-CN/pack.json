@@ -1,0 +1,194 @@
+{
+  "schema_version": 1,
+  "pack_version": "1.0.0",
+  "language": "zh-CN",
+  "name": "中文表达规则包（首版）",
+  "compat": {
+    "min_core": "1.7.0"
+  },
+  "weak_metrics": [
+    "zh_constructions",
+    "zh_four_char"
+  ],
+  "terms": {
+    "particles": [
+      "吧",
+      "呢",
+      "啊",
+      "嘛",
+      "呀",
+      "哦",
+      "嗯",
+      "哈",
+      "啦"
+    ],
+    "hedges": [
+      "可能",
+      "也许",
+      "大概",
+      "或许",
+      "似乎",
+      "看起来",
+      "应该",
+      "差不多",
+      "某种程度上",
+      "不一定",
+      "未必",
+      "估计"
+    ],
+    "boosters": [
+      "一定",
+      "肯定",
+      "确实",
+      "明显",
+      "显然",
+      "绝对",
+      "非常",
+      "特别",
+      "尤其",
+      "必须",
+      "毫无疑问",
+      "无疑"
+    ],
+    "connectors": [
+      "但是",
+      "不过",
+      "然而",
+      "所以",
+      "因此",
+      "因为",
+      "其实",
+      "说白了",
+      "换句话说",
+      "也就是说",
+      "另外",
+      "此外",
+      "总之",
+      "反正",
+      "于是",
+      "然后"
+    ],
+    "colloquial": [
+      "咱们",
+      "搞定",
+      "折腾",
+      "靠谱",
+      "干脆",
+      "索性",
+      "拉倒",
+      "犯不着",
+      "回头",
+      "咋"
+    ],
+    "ai_tell_patterns": {
+      "套话提示语": "值得注意的是|不难发现|众所周知|综上所述|总而言之|由此可见|以上就是|接下来我们",
+      "翻案腔": "不是[^，。；]{1,12}而是|并非[^，。；]{1,12}而是|与其说[^，。]{1,12}不如说|看似[^，。]{1,12}实则",
+      "空洞强调": "赋能|抓手|极大地|深度融合|底层逻辑|颗粒度",
+      "总结提示语": "一句话总结|划重点|先说结论|核心是[:：]"
+    },
+    "construction_patterns": {
+      "把字句": "把(?![一把手就好话])",
+      "被动式": "被|受到|遭到"
+    }
+  },
+  "rules": [
+    {
+      "id": "zh.ai-tell.canned-transitions",
+      "category": "ai_tell",
+      "severity": "major",
+      "kind": "deterministic",
+      "guidance": "不要用「值得注意的是/综上所述/接下来我们」这类宣布结构的套话；过渡句要承接上一句的具体内容。",
+      "pattern": "值得注意的是|不难发现|众所周知|综上所述|总而言之|由此可见|以上就是|接下来我们",
+      "bad_example": "接下来我们来看看缓存失效的问题。",
+      "better_example": "缓存能减少查询，但数据更新后，旧值还可能被继续读取。",
+      "exceptions": [
+        "引语",
+        "用户明确保留的讲课口吻"
+      ]
+    },
+    {
+      "id": "zh.ai-tell.reversal-frame",
+      "category": "ai_tell",
+      "severity": "major",
+      "kind": "contextual",
+      "guidance": "「不是A而是B」只在澄清真实概念差异时使用；澄清要有具体内容，不能只做修辞翻转。",
+      "pattern": "不是[^，。；]{1,12}而是|并非[^，。；]{1,12}而是|与其说[^，。]{1,12}不如说|看似[^，。]{1,12}实则",
+      "bad_example": "这不是一个技术问题，而是一个认知问题。",
+      "better_example": "难点不在工具，而在于团队对数据口径没有达成一致。",
+      "exceptions": [
+        "真实概念对比"
+      ]
+    },
+    {
+      "id": "zh.ai-tell.hollow-booster",
+      "category": "ai_tell",
+      "severity": "major",
+      "kind": "deterministic",
+      "guidance": "「赋能/抓手/底层逻辑」等空洞强调词不带来信息；判断标准是删掉后句子是否丢意思。",
+      "pattern": "赋能|抓手|极大地|深度融合|底层逻辑|颗粒度",
+      "bad_example": "该方案极大地赋能了业务底层逻辑。",
+      "better_example": "该方案把对账时间从两小时缩短到十分钟。",
+      "exceptions": []
+    },
+    {
+      "id": "zh.transition.empty-announcement",
+      "category": "transition",
+      "severity": "suggestion",
+      "kind": "contextual",
+      "guidance": "过渡句应承接具体内容；只宣布下一节的句子可删减。",
+      "bad_example": "首先，我们把数据放进缓存。其次，我们设置过期时间。",
+      "better_example": "缓存命中后仍需处理过期：设 TTL，并在重建时加锁。",
+      "exceptions": [
+        "步骤说明确需序数"
+      ]
+    },
+    {
+      "id": "zh.modifier.overlong-attributive",
+      "category": "modifier",
+      "severity": "suggestion",
+      "kind": "guidance",
+      "guidance": "长定语拆成短句：中文倾向「先说主语和动作，再补条件」，而不是把大量修饰成分堆在名词前。",
+      "bad_example": "这是一个用于解决高并发场景下库存超卖问题的基于 Redis 的分布式锁方案。",
+      "better_example": "高并发下库存可能超卖。我们用 Redis 实现分布式锁来解决。",
+      "exceptions": [
+        "术语本身较长"
+      ]
+    },
+    {
+      "id": "zh.subject.clarity",
+      "category": "subject",
+      "severity": "suggestion",
+      "kind": "guidance",
+      "guidance": "主语省略是中文常态，但连续省略会让指代悬空；换段或换对象时把主语补回来。",
+      "bad_example": "先配置超时，然后重试三次，还不行就降级，最后报警。",
+      "better_example": "客户端先配置超时，失败后重试三次；仍失败则由网关降级并报警。",
+      "exceptions": [
+        "步骤清单"
+      ]
+    },
+    {
+      "id": "zh.term.first-mention",
+      "category": "terminology",
+      "severity": "suggestion",
+      "kind": "guidance",
+      "guidance": "术语首现用「中文名（英文缩写）」格式，如「检索增强生成（RAG）」；之后可只用缩写。用户词表优先于默认写法。",
+      "bad_example": "RAG 是一种检索增强生成技术（RAG）。",
+      "better_example": "检索增强生成（RAG）先检索再生成；后文简称 RAG。",
+      "exceptions": [
+        "通篇只有缩写更自然的场景"
+      ]
+    },
+    {
+      "id": "zh.register.colloquial-balance",
+      "category": "register",
+      "severity": "info",
+      "kind": "guidance",
+      "guidance": "口语词（搞定、折腾、靠谱）带人味，但技术解释里密度过高会显得轻浮；实验记录与复盘可以更松，知识笔记更收敛。",
+      "bad_example": "这个 bug 太折腾了，搞了半天终于搞定了，真的很离谱。",
+      "better_example": "这个 bug 折腾了半天：根因是时区，修复只改了一行。",
+      "exceptions": [
+        "复盘、随笔等个人文体"
+      ]
+    }
+  ]
+}

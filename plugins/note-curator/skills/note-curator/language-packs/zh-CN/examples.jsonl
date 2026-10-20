@@ -1,0 +1,3 @@
+{"id": "zh-tech-001", "register": "technical", "synthetic": true, "author": "note-curator", "source": "built-in", "license": "CC0", "reviewed": true, "text": "缓存能减少查询，但数据更新后，旧值还可能被继续读取，所以过期策略要和一致性要求一起定。"}
+{"id": "zh-retro-001", "register": "retrospective", "synthetic": true, "author": "note-curator", "source": "built-in", "license": "CC0", "reviewed": true, "text": "这次发布翻车在我的预估上：迁移脚本没考虑旧数据为空的分支，回滚花了四十分钟。"}
+{"id": "zh-exp-001", "register": "experiment", "synthetic": true, "author": "note-curator", "source": "built-in", "license": "CC0", "reviewed": true, "text": "把批量从 64 调到 128 后吞吐没涨，显存先满了；收益上限在批量 96 附近。"}

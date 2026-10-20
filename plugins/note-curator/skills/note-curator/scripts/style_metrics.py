@@ -575,6 +575,9 @@ def compare_profiles(profile, draft):
         exp = sum(item["per_1000"] for item in expected[group_key].values())
         act = sum(item["per_1000"] for item in draft[group_key].values())
         severity = _ratio_severity(exp, act)
+        if severity and group_key == "zh_constructions":
+            # B03-05：把字句/被动式统计是粗糙信号，降为弱提示，不进主判定
+            severity = "info"
         if severity:
             _add(findings, cat[label_key], severity,
                  "%s: %s, profile %s" % (cat[label_key], _fmt(act), _fmt(exp)),
@@ -585,6 +588,8 @@ def compare_profiles(profile, draft):
         act = draft["zh_four_char"]["per_1000"]
         severity = _ratio_severity(exp, act)
         if severity:
+            # B03-05：四字格计数无法区分成语与普通四字组合，降为弱提示
+            severity = "info"
             _add(findings, cat["four_char"], severity,
                  "%s: %s, profile %s" % (cat["four_char"], _fmt(act), _fmt(exp)),
                  exp, act)

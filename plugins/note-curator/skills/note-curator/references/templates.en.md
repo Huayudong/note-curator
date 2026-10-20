@@ -43,21 +43,6 @@ points, no nesting. Where it helps, add one small example or analogy.}}
 left an obviously open point; extend in the curator's own voice. Omit the whole section
 otherwise.}}
 
-## Related
-
-- Related: [[existing note title]]   {{wikilink only to notes that already exist; omit the section if none}}
-
----
-Source: {{URL or "local draft"}}
-```
-
-Frontmatter rules:
-
-- **Only `author` / `created` / `tags`** — no more, no fewer.
-- `tags`: **at most 3, each summarizing what this note is about** (domain or topic words,
-  e.g. `[caching, redis, backend]`); zero-information tags like "notes" or "knowledge" do
-  not count. Fewer is better than filler.
-
 ### Writing requirements
 
 - **Complete vague definitions**: if the source only says "X is a kind of Y" and Y is just
@@ -109,16 +94,6 @@ validity. If the conclusion is uncertain, say "to be verified" explicitly.}}
 {{Optional: keep only when the experiment leaves an unanswered question or a limitation
 worth discussing; omit otherwise.}}
 
-## Related
-
-- Related: [[existing note title]]
-
----
-Source: {{URL or "local draft"}}
-```
-
-Frontmatter rules as above: three fields only; tags ≤ 3 and each summarizes this note.
-
 ### Writing requirements
 
 - **Summarize, don't hoard data**: keep only the numbers that support the conclusion; a
@@ -142,3 +117,8 @@ After fetching/reading the source, classify by these features:
 
 When the boundary is fuzzy, prefer **Knowledge** (broader coverage, and its
 "complete the definition" step is also useful for experiment background).
+
+<!-- Backlink convention: write [[target|display text]] where the concept
+     appears in the body; never append a "Related notes" list at the end --
+     a tail list does not count as linking even when targets exist;
+     zero links is acceptable when the body has no matching concept. -->

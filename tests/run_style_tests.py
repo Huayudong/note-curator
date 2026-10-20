@@ -355,6 +355,47 @@ def main():
         still_old = json.loads((old_prof / "profile.json").read_text(encoding="utf-8"))
         check("b02 old profile intact", "profile_key" not in still_old)
 
+        # --- 12. B03: language packs, weak-hint downgrade, allow/ban ---
+        r = run([SCRIPTS / "resource_pack.py", "--lang", "zh", "--json"])
+        zp = json.loads(r.stdout)
+        check("b03 zh pack valid", r.returncode == 0 and zp["ok"] and zp["rules"] >= 8,
+              r.stdout[:200])
+        r = run([SCRIPTS / "resource_pack.py", "--lang", "en", "--json"])
+        ep = json.loads(r.stdout)
+        check("b03 en pack valid", r.returncode == 0 and ep["ok"] and ep["rules"] >= 6,
+              r.stdout[:200])
+        r = run([SCRIPTS / "resource_pack.py", "--lang", "zh", "--pack-root",
+                 str(tmp / "no-such-pack-root"), "--json"])
+        check("b03 missing pack rc2", r.returncode == 2, r.stdout[:150])
+
+        weak_draft = tmp / "weak-draft.md"
+        weak_draft.write_text(
+            "把配置改了。把缓存清了。把服务重启了。把日志翻了。"
+            "最后把问题定位了。就这样把事情办妥了。", encoding="utf-8")
+        r = run([SCRIPTS / "style_check.py", weak_draft, "--profile", zh2_profile,
+                 "--json"])
+        weak = json.loads(r.stdout)
+        cons = [f["severity"] for f in weak["findings"] if f["category"] == "句式"]
+        check("b03 constructions weak-only", cons and all(s == "info" for s in cons),
+              str(cons))
+
+        ab_draft = tmp / "ab-draft.md"
+        ab_draft.write_text("值得注意的是，这个方案极大地提升了性能。说白了就是把缓存清了。",
+                            encoding="utf-8")
+        r = run([SCRIPTS / "style_check.py", ab_draft, "--profile", zh2_profile,
+                 "--json", "--allow", "值得注意的是", "--allow", "极大地"])
+        ab = json.loads(r.stdout)
+        left = [f for f in ab["findings"]
+                if "套话提示语" in f["message"] or "空洞强调" in f["message"]]
+        check("b03 allow suppresses", not left
+              and ab.get("allowed_suppressed", 0) >= 2,
+              str(ab.get("allowed_suppressed")))
+        r = run([SCRIPTS / "style_check.py", ab_draft, "--profile", zh2_profile,
+                 "--json", "--ban", "说白了"])
+        ab2 = json.loads(r.stdout)
+        banned = [f for f in ab2["findings"] if f.get("user_banned")]
+        check("b03 ban flags", len(banned) == 1, str(banned)[:150])
+
     print("")
     if FAILURES:
         print("FAILED: %d test(s): %s" % (len(FAILURES), ", ".join(FAILURES)))

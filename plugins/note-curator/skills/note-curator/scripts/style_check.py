@@ -33,6 +33,10 @@ def main():
     ap.add_argument("--json", action="store_true", help="输出 JSON")
     ap.add_argument("--strict", action="store_true", help="存在 major 偏差时退出码 1")
     ap.add_argument("--max-findings", type=int, default=20, help="最多显示多少条，默认 20")
+    ap.add_argument("--allow", action="append", default=[],
+                    help="用户允许的表达：命中的提示被忽略（可重复）")
+    ap.add_argument("--ban", action="append", default=[],
+                    help="用户禁用的表达：出现即提示（可重复）")
     args = ap.parse_args()
 
     draft_path = Path(args.draft).expanduser()
@@ -53,6 +57,57 @@ def main():
     draft_text = draft_path.read_text(encoding="utf-8", errors="ignore")
     draft_metrics = analyze_text(draft_text)
     result = compare_profiles(profile, draft_metrics)
+
+    # B03-07：用户允许项压掉命中提示；禁用项直接生成提示
+    allowed = [a for a in args.allow if a]
+    if allowed:
+        import re as _re
+        from style_metrics import get_pack
+        suppressed_groups = set()
+        try:
+            patterns = getattr(get_pack(profile.get("language", "zh")),
+                               "AI_TELL_PATTERNS", {})
+            for phrase in allowed:
+                for group, pattern in patterns.items():
+                    try:
+                        if _re.search(pattern, phrase):
+                            suppressed_groups.add(group)
+                    except _re.error:
+                        continue
+        except Exception:
+            pass
+
+        def _suppressed(f):
+            if any(a in f["message"] or a in f["category"] for a in allowed):
+                return True
+            head = f["message"].split(":", 1)[0].strip()
+            return head in suppressed_groups
+
+        kept = [f for f in result["findings"] if not _suppressed(f)]
+        suppressed = len(result["findings"]) - len(kept)
+        result["findings"] = kept
+        if suppressed:
+            result["allowed_suppressed"] = suppressed
+    if args.ban:
+        labels = LABELS[profile.get("language", "zh")]
+        for phrase in args.ban:
+            if not phrase:
+                continue
+            count = draft_text.count(phrase)
+            if count:
+                result["findings"].insert(0, {
+                    "category": labels["cat"]["lexical"],
+                    "severity": "minor",
+                    "message": "%s: %s x%d" % (labels["cat"]["lexical"],
+                                               phrase, count),
+                    "expected": 0, "actual": count,
+                    "user_banned": True,
+                })
+    major = sum(1 for f in result["findings"] if f["severity"] == "major")
+    minor = sum(1 for f in result["findings"] if f["severity"] == "minor")
+    result["counts"] = {"major": major, "minor": minor,
+                        "info": len(result["findings"]) - major - minor}
+
     result["draft"] = str(draft_path)
     result["profile"] = str(profile_path)
     result["draft_language"] = draft_metrics.get("language")

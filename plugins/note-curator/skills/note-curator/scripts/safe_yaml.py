@@ -272,7 +272,8 @@ SCHEMA = {
     "style": {"geek_joke_probability": float, "allow_extension": bool,
               "learn_from_vault": bool, "profile_sample": int,
               "language": str, "profile_dir": str, "check_before_write": bool,
-              "output_language": str},
+              "output_language": str,
+              "allowed_phrases": list, "banned_phrases": list},
 }
 
 TYPE_NAMES = {str: "字符串", bool: "布尔值", list: "列表", int: "整数",

@@ -1,0 +1,2 @@
+{"id": "en-tech-001", "register": "technical", "synthetic": true, "author": "note-curator", "source": "built-in", "license": "CC0", "reviewed": true, "text": "The cache hides latency until the data changes; then every reader sees stale rows."}
+{"id": "en-retro-001", "register": "retrospective", "synthetic": true, "author": "note-curator", "source": "built-in", "license": "CC0", "reviewed": true, "text": "The outage was on me: the migration script missed the empty-table branch, and rollback took forty minutes."}
