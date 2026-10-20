@@ -17,7 +17,8 @@ import re
 
 import style_lang_en
 import style_lang_zh
-from langdetect import detect_language  # noqa: F401  语言检测的统一入口
+from langdetect import (detect_language, detect_language_detail,  # noqa: F401
+                        CJK_RE, LATIN_RE, MIN_CHARS, ZH_THRESHOLD)
 from style_util import per_1000, percentile, stats  # noqa: F401  共享数学工具
 
 PACKS = {"zh": style_lang_zh, "en": style_lang_en}
@@ -226,30 +227,76 @@ def analyze_text(raw_text, lang=None, formatting_text=None):
 
 # ---------- 语料画像 ----------
 
+def _para_is_compatible(para, lang):
+    """段级语言相容判定；过短段落（und）不剔除。"""
+    cjk = len(CJK_RE.findall(para))
+    latin = len(LATIN_RE.findall(para))
+    total = cjk + latin
+    if total < MIN_CHARS:
+        return True
+    detected = "zh" if cjk / total >= ZH_THRESHOLD else "en"
+    return detected == lang
+
+
 def analyze_corpus(files, max_samples=5, lang="auto"):
-    """files: [Path]；lang: auto/zh/en。返回可序列化的画像字典。"""
-    raw_texts = []
-    samples = []
+    """files: [Path]；lang: auto/zh/en。返回可序列化的画像字典。
+
+    B02 语言口径（G02）：
+    - 语言按文件判定（清洗后），auto 取有效文件多数；
+    - 强制语言表示**筛选与验证**：不匹配的文件剔除并记录在
+      language_scope.files_excluded，不再强行按该语言统计；
+    - 命中文件里与画像语言不同的段落（如长英文引语段）剔除出正文统计；
+      代码、行内代码、链接与 URL 在 clean_markdown 已剔除。
+    """
+    entries = []
     for path in files:
         try:
             raw = path.read_text(encoding="utf-8", errors="ignore")
         except Exception:
             continue
-        raw_texts.append(raw)
-        clean = clean_markdown(raw)
+        detail = detect_language_detail(clean_markdown(raw))
+        entries.append({"path": path, "raw": raw, "primary": detail["primary"]})
+
+    forced = lang in ("zh", "en")
+    if not forced:
+        counted = [e for e in entries if e["primary"] in ("zh", "en")]
+        if counted:
+            zh_n = sum(1 for e in counted if e["primary"] == "zh")
+            lang = "zh" if zh_n * 2 >= len(counted) else "en"
+        else:
+            lang = "zh"  # 全部 und：跟随默认，段级过滤不会误删
+    excluded = []
+    und_followed = 0
+    used = []
+    for e in entries:
+        if e["primary"] == "und":
+            used.append(e)
+            und_followed += 1
+        elif e["primary"] == lang:
+            used.append(e)
+        else:
+            excluded.append({"path": str(e["path"]), "detected": e["primary"]})
+
+    raw_texts = []
+    samples = []
+    dropped_segments = 0
+    for e in used:
+        clean = clean_markdown(e["raw"])
+        paras = [p for p in split_paragraphs(clean) if p.strip()]
+        kept = [p for p in paras if _para_is_compatible(p, lang)]
+        dropped_segments += len(paras) - len(kept)
+        raw_texts.append("\n\n".join(kept))
         if len(samples) < max_samples:
-            for para in split_paragraphs(clean):
+            for para in kept:
                 if 80 <= len(para) <= 320:
-                    samples.append({"source": str(path), "text": para})
+                    samples.append({"source": str(e["path"]), "text": para})
                     break
 
-    combined_raw = "\n\n".join(raw_texts)
-    combined_clean = "\n\n".join(clean_markdown(raw) for raw in raw_texts)
-    if lang == "auto":
-        lang = detect_language(combined_clean)
+    combined_raw = "\n\n".join(e["raw"] for e in used)
+    combined_clean = "\n\n".join(raw_texts)
     metrics = analyze_text(combined_clean, lang=lang, formatting_text=combined_raw)
     return {
-        "profile_version": 2,
+        "profile_version": 3,
         "language": lang,
         "unit": metrics["unit"],
         "generated_at": datetime.datetime.now().isoformat(timespec="seconds"),
@@ -259,6 +306,13 @@ def analyze_corpus(files, max_samples=5, lang="auto"):
         },
         "metrics": metrics,
         "samples": samples,
+        "language_scope": {
+            "forced": forced,
+            "files_used": len(used),
+            "files_excluded": excluded,
+            "und_followed_profile": und_followed,
+            "segments_dropped": dropped_segments,
+        },
     }
 
 

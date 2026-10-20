@@ -22,12 +22,14 @@ Agent 再用本脚本把改后的版本并入画像。
 
 import argparse
 import datetime
+import hashlib
 import json
 import sys
 import nc_core  # noqa: F401  B01-02: 统一 UTF-8 标准流与共享基础工具
 from pathlib import Path
 
-from style_metrics import analyze_corpus, clean_markdown, detect_language, profile_to_markdown
+from langdetect import detect_language_detail
+from style_metrics import analyze_corpus, clean_markdown, profile_to_markdown
 
 
 def is_within(base, path):
@@ -60,8 +62,9 @@ def main():
     lang = profile.get("language", "zh")
     existing = list(source.get("files", []))
 
-    added = []
-    rejected = []
+    revisions = dict(profile.get("revisions", {}))
+    now = datetime.datetime.now().isoformat(timespec="seconds")
+    added, updated, rejected = [], [], []
     for note in args.note:
         p = Path(note).expanduser()
         if not p.is_absolute():
@@ -71,25 +74,32 @@ def main():
             rejected.append((note, "文件不存在"))
             continue
         try:
-            text = clean_markdown(p.read_text(encoding="utf-8", errors="ignore"))
-        except Exception as exc:
+            raw = p.read_text(encoding="utf-8", errors="ignore")
+        except OSError as exc:
             rejected.append((note, "读取失败: %s" % exc))
             continue
-        if detect_language(text) != lang:
-            rejected.append((note, "语言与画像不符（画像 %s）" % lang))
+        detail = detect_language_detail(clean_markdown(raw))
+        if detail["primary"] not in (lang, "und"):
+            rejected.append((note, "语言与画像不符（画像 %s，检测 %s）"
+                             % (lang, detail["primary"])))
             continue
         rel = str(p.relative_to(vault)) if is_within(vault, p) else str(p)
-        if rel in existing:
-            rejected.append((note, "已在画像语料中"))
-            continue
-        existing.append(rel)
-        added.append(rel)
+        digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()
+        seen = revisions.get(rel)
+        if seen and seen.get("hash") == digest:
+            continue  # 内容无变化：幂等无操作（B02-07）
+        if rel not in existing:
+            existing.append(rel)
+            added.append(rel)
+        else:
+            updated.append(rel)
+        revisions[rel] = {"hash": digest, "learned_at": now}
 
     for note, reason in rejected:
         print("[SKIP] %s — %s" % (note, reason), file=sys.stderr)
 
-    if not added:
-        print("[STOP] 没有可学习的笔记（全部被拒绝或已在语料中）。", file=sys.stderr)
+    if not added and not updated:
+        print("[STOP] 没有新增或变化的笔记（相同内容重复学习无操作）。", file=sys.stderr)
         sys.exit(2)
 
     if args.sample and args.sample > 0 and len(existing) > args.sample:
@@ -115,28 +125,30 @@ def main():
         if p.is_file():
             files.append(p)
 
-    updated = analyze_corpus(files, max_samples=5, lang=lang)
-    for sample in updated.get("samples", []):
+    refreshed = analyze_corpus(files, max_samples=5, lang=lang)
+    for sample in refreshed.get("samples", []):
         sample_path = Path(sample["source"])
         if is_within(vault, sample_path):
             sample["source"] = str(sample_path.relative_to(vault))
 
-    now = datetime.datetime.now().isoformat(timespec="seconds")
     history = list(profile.get("history", []))
-    history.append({"at": now, "learned": added})
-    updated["history"] = history[-20:]
-    updated["learned_count"] = profile.get("learned_count", 0) + len(added)
-    updated["created_at"] = profile.get("created_at") or profile.get("generated_at")
-    updated["source"] = dict(source)
-    updated["source"]["files"] = existing
+    history.append({"at": now, "learned": added, "updated": updated})
+    refreshed["history"] = history[-20:]
+    refreshed["learned_count"] = (profile.get("learned_count", 0)
+                                  + len(added) + len(updated))
+    refreshed["created_at"] = profile.get("created_at") or profile.get("generated_at")
+    refreshed["source"] = dict(source)
+    refreshed["source"]["files"] = existing
+    refreshed["revisions"] = {k: v for k, v in revisions.items() if k in set(existing)}
 
-    profile_path.write_text(json.dumps(updated, ensure_ascii=False, indent=2),
+    profile_path.write_text(json.dumps(refreshed, ensure_ascii=False, indent=2),
                             encoding="utf-8")
-    (profile_path.parent / "profile.md").write_text(profile_to_markdown(updated),
+    (profile_path.parent / "profile.md").write_text(profile_to_markdown(refreshed),
                                                     encoding="utf-8")
 
-    print("[OK] 已学习 %d 篇，画像语料现为 %d 篇（language: %s）"
-          % (len(added), len(existing), lang))
+    print("[OK] 已学习 %d 篇（新增 %d，刷新 %d），画像语料现为 %d 篇（language: %s）"
+          % (len(added) + len(updated), len(added), len(updated),
+             len(existing), lang))
     print("     更新：%s" % profile_path)
     print("     voice.md 未改动；若语气判断也要更新，让 Agent 重新阅读样本后修订。")
 

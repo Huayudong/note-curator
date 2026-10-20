@@ -18,6 +18,10 @@ note-curator is an open-source Agent Skill for Chinese note curation. It fetches
 - **Style-aware formatting**: mirror the target folder's frontmatter, heading levels, list markers, emphasis, and structural density.
 - **Local voice profile**: measure sentence length, punctuation, pronouns, particles, connectors, sentence openers, and rhetorical habits; the agent reads sample notes and completes a qualitative `voice.md`.
 - **Pre-write style check**: compare a draft with the profile and flag clear deviations.
+- **Bilingual profile isolation (B02)**: profiles live at `<folder>-<language>` with a composite key (user + vault + language + scope); Chinese and English samples in one folder never pollute each other, and code blocks, inline code, and long quoted foreign-language paragraphs are excluded from the statistics.
+- **Language decision**: output language = explicit request > target note language (merge) > config `output_language` > source primary language; all four source/output combinations are supported, and cross-language curation preserves facts, figures, and attribution while keeping terms, code, and quotes in the original.
+- **Migratable profiles**: legacy profiles are migrated into the new namespace with `migrate_profiles.py` (old folders kept; delete the new folder to roll back), and moved vaults can be re-linked.
+- **Repeated edits keep teaching**: learning identifies revisions by content hash, so the 2nd and 3rd edit of the same note refresh the statistics; re-learning unchanged content is a no-op.
 - **Small frontmatter contract**: `author`, `created`, and `tags` only; tags are capped at three and must describe the note.
 - **No third-party Python dependencies**: the standard library only; syntax supports Python 3.8+, and CI tests 3.10 / 3.13 on Windows and Linux (scripts force UTF-8 stdio, so the default Windows codepage works).
 

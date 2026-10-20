@@ -227,3 +227,36 @@ def save_baseline(run_id, target_rel, content, source_type, note=None):
     path = baselines_dir() / ("%s.json" % run_id)
     atomic_write_text(path, json.dumps(baseline, ensure_ascii=False, indent=2))
     return path
+
+
+# ---------- vault 身份登记（B02-02） ----------
+
+def vault_registry_path():
+    return data_root() / "registry.json"
+
+
+def vault_id_for(vault_path):
+    """按规范化路径取稳定 vault_id；首次见到时登记新 UUID。
+
+    vault 搬家后路径变化会得到新 id（复制库默认是新身份）；
+    用 migrate_profiles.py --relink 可把旧 id 迁到新路径。
+    """
+    path = vault_registry_path()
+    registry = {"vaults": {}}
+    if path.is_file():
+        try:
+            registry = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            registry = {"vaults": {}}
+    vaults = registry.setdefault("vaults", {})
+    key = os.path.normcase(os.path.normpath(str(vault_path)))
+    vid = vaults.get(key)
+    if not vid:
+        vid = uuid.uuid4().hex[:12]
+        vaults[key] = vid
+        try:
+            atomic_write_text(path, json.dumps(registry, ensure_ascii=False,
+                                               indent=2))
+        except OSError:
+            pass
+    return vid

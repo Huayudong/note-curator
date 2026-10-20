@@ -263,6 +263,7 @@ def load_file(path):
 SCHEMA = {
     "vault_path": str,
     "adapter": str,
+    "interface_language": str,
     "taxonomy": {"default_dir": str, "rules": list, "confirm_dir": bool},
     "frontmatter": {"author": str, "auto_tags": bool},
     "backlinks": {"mode": str, "min_confidence": float},
@@ -270,7 +271,8 @@ SCHEMA = {
               "merge_flow": str, "default_op": str, "conflict_handling": str},
     "style": {"geek_joke_probability": float, "allow_extension": bool,
               "learn_from_vault": bool, "profile_sample": int,
-              "language": str, "profile_dir": str, "check_before_write": bool},
+              "language": str, "profile_dir": str, "check_before_write": bool,
+              "output_language": str},
 }
 
 TYPE_NAMES = {str: "字符串", bool: "布尔值", list: "列表", int: "整数",

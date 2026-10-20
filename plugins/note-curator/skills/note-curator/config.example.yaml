@@ -9,6 +9,11 @@
 # 未配置或路径失效时，skill 会先引导完成配置，不会直接把整篇笔记输出到会话。
 vault_path: ""
 
+# 界面与提示语言（zh / en）。旧 style.language 只代表画像语料语言，
+# 不再兼任「界面/输出语言」（B02-01：interface_language / output_language /
+# profile_language 三者分离）。
+interface_language: "zh"
+
 # 笔记软件适配器：obsidian（将来可扩展 logseq / notion 等）
 adapter: "obsidian"
 
@@ -76,7 +81,13 @@ style:
   # 建立画像时取最近 N 篇笔记作为样本（0 表示全部）。
   profile_sample: 20
   # 画像语言：auto 自动检测（中文按字、英文按词），也可强制 zh / en。
+  # 注意：强制 zh 表示「只把中文样本纳入画像并校验语言」，不是把英文
+  # 文本强行按中文统计（B02-04）。
   language: auto
+  # 输出语言：auto = 本次指定 > 目标笔记语言(合并) > 源文主语言；
+  # zh / en 强制输出语言。跨语言整理保留事实、数字、限定与归属，
+  # 术语、代码、引语保留原文，叙述忠实翻译（B02-10）。
+  output_language: auto
   # 画像存放目录；默认 ~/.note-curator/style-profiles。
   profile_dir: "~/.note-curator/style-profiles"
   # 写入前是否运行 style_check.py 做一次风格偏差检查。

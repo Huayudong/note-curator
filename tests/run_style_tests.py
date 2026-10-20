@@ -272,6 +272,89 @@ def main():
         check("check_setup reports unknown fields",
               data.get("unknown_fields") == ["some_unknown_key"], r.stdout[:300])
 
+        # --- 11. B02: bilingual profile isolation, forced-language filter, migration ---
+        import shutil as _shutil2
+
+        iso_root = tmp / "iso-profiles"
+        for tag in ("v1", "v2"):
+            iso_vault = tmp / ("iso-" + tag)
+            (iso_vault / "diary").mkdir(parents=True)
+            _shutil2.copy(ZH_FIXTURE, iso_vault / "diary" / "note.md")
+            r = run([SCRIPTS / "style_profile.py", "--vault", str(iso_vault),
+                     "--dir", "diary", "--profile-dir", str(iso_root)])
+            check("b02 iso profile %s" % tag, r.returncode == 0, r.stderr[-300:])
+        iso_dirs = sorted(d.name for d in iso_root.iterdir())
+        check("b02 two isolated profiles", len(iso_dirs) == 2, str(iso_dirs))
+        check("b02 lang suffix naming",
+              all(name.endswith("-zh") for name in iso_dirs), str(iso_dirs))
+        ids = set()
+        for name in iso_dirs:
+            key = json.loads((iso_root / name / "profile.json").read_text(encoding="utf-8"))
+            ids.add(key["profile_key"]["vault_id"])
+        check("b02 distinct vault ids", len(ids) == 2, str(ids))
+
+        mix_vault = tmp / "mix-vault"
+        mix_vault.mkdir()
+        _shutil2.copy(ZH_FIXTURE, mix_vault / "zh.md")
+        _shutil2.copy(EN_FIXTURES / "cache-invalidation.md", mix_vault / "en.md")
+        mix_prof = tmp / "mix-profiles"
+        r = run([SCRIPTS / "style_profile.py", "--vault", str(mix_vault),
+                 "--files", "zh.md,en.md", "--profile-dir", str(mix_prof),
+                 "--name", "auto-mix"])
+        check("b02 auto mix exit 0", r.returncode == 0, r.stderr[-300:])
+        auto = json.loads((mix_prof / "auto-mix" / "profile.json").read_text(encoding="utf-8"))
+        check("b02 auto majority zh excludes en",
+              auto["language"] == "zh"
+              and auto["language_scope"]["files_excluded"][0]["path"].endswith("en.md"),
+              json.dumps(auto.get("language_scope"), ensure_ascii=False))
+        r = run([SCRIPTS / "style_profile.py", "--vault", str(mix_vault),
+                 "--files", "zh.md,en.md", "--profile-dir", str(mix_prof),
+                 "--name", "forced-zh", "--lang", "zh"])
+        check("b02 forced zh exit 0", r.returncode == 0, r.stderr[-300:])
+        forced = json.loads((mix_prof / "forced-zh" / "profile.json").read_text(encoding="utf-8"))
+        check("b02 forced filters not force-counts",
+              forced["language"] == "zh" and forced["corpus"]["file_count"] == 1
+              and forced["language_scope"]["forced"] is True,
+              str(forced.get("language_scope")))
+
+        r = run([SCRIPTS / "migrate_profiles.py", "--profile-dir", str(mix_prof),
+                 "--json"])
+        check("b02 migrate keyed-only rc0", r.returncode == 0
+              and json.loads(r.stdout)["plans"][0]["status"] == "already-keyed",
+              r.stdout[:200])
+        r = run([SCRIPTS / "migrate_profiles.py", "--profile-dir",
+                 str(tmp / "no-profiles"), "--json"])
+        check("b02 migrate empty rc2", r.returncode == 2, r.stdout[:200])
+
+        old_prof = tmp / "legacy-profiles" / "legacy"
+        old_prof.mkdir(parents=True)
+        legacy = {"profile_version": 2, "language": "zh",
+                  "corpus": {"file_count": 1, "total_chars": 400},
+                  "metrics": {}, "samples": [],
+                  "source": {"vault": str(mix_vault), "files": ["zh.md"]}}
+        (old_prof / "profile.json").write_text(json.dumps(legacy, ensure_ascii=False),
+                                               encoding="utf-8")
+        (old_prof / "voice.md").write_text("# voice-keeper", encoding="utf-8")
+        r = run([SCRIPTS / "migrate_profiles.py", "--profile-dir",
+                 str(tmp / "legacy-profiles"), "--json"])
+        plan = json.loads(r.stdout)
+        check("b02 migrate plans legacy",
+              plan["plans"][0]["status"] == "planned"
+              and plan["plans"][0]["to"] == "legacy-zh", r.stdout[:300])
+        r = run([SCRIPTS / "migrate_profiles.py", "--profile-dir",
+                 str(tmp / "legacy-profiles"), "--apply"])
+        check("b02 migrate apply rc0", r.returncode == 0, r.stderr[-200:])
+        migrated = json.loads((tmp / "legacy-profiles" / "legacy-zh" / "profile.json")
+                              .read_text(encoding="utf-8"))
+        check("b02 migrated has key",
+              migrated["profile_key"]["language"] == "zh"
+              and migrated.get("migrated_from") == "legacy",
+              json.dumps(migrated.get("profile_key"), ensure_ascii=False))
+        kept = (tmp / "legacy-profiles" / "legacy-zh" / "voice.md").read_text(encoding="utf-8")
+        check("b02 voice copied", "voice-keeper" in kept, kept[:100])
+        still_old = json.loads((old_prof / "profile.json").read_text(encoding="utf-8"))
+        check("b02 old profile intact", "profile_key" not in still_old)
+
     print("")
     if FAILURES:
         print("FAILED: %d test(s): %s" % (len(FAILURES), ", ".join(FAILURES)))

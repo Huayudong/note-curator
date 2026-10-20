@@ -167,14 +167,39 @@ def main():
         raise SystemExit("[ERROR] vault 不存在: %s" % vault)
 
     files, target, mode = collect_files(vault, args)
-    name = slugify(args.name or (args.dir if args.dir else ("vault" if args.all else "files")))
+    profile = analyze_corpus(files, max_samples=5, lang=args.lang)
+
+    # B02-02：默认画像名带语言后缀，中英文画像天然分开；显式 --name 优先
+    base_name = slugify(args.name or (args.dir if args.dir else ("vault" if args.all else "files")))
+    vault_id = nc_core.vault_id_for(vault)
+    name = base_name if args.name else "%s-%s" % (base_name, profile["language"])
     profile_root = Path(args.profile_dir).expanduser() if args.profile_dir else DEFAULT_PROFILE_DIR
+    if not args.name:
+        # B02-02：同名画像已属于其他 vault 时加 vault 前缀，避免跨库覆盖
+        probe = profile_root / name / "profile.json"
+        if probe.exists():
+            try:
+                prior = json.loads(probe.read_text(encoding="utf-8"))
+                if prior.get("profile_key", {}).get("vault_id") != vault_id:
+                    name = "%s-%s-%s" % (base_name, vault_id[:4], profile["language"])
+                    print("[INFO] 同名画像属于其他 vault，本画像写入：%s" % name,
+                          file=sys.stderr)
+            except ValueError:
+                pass
     profile_dir = profile_root / name
     profile_path = Path(args.out).expanduser() if args.out else profile_dir / "profile.json"
     profile_dir = profile_path.parent
     profile_dir.mkdir(parents=True, exist_ok=True)
 
-    profile = analyze_corpus(files, max_samples=5, lang=args.lang)
+    # B02-02：画像复合键（用户 + vault + 语言 + 文体 + 作用域）
+    profile["profile_key"] = {
+        "user_id": "local",
+        "vault_id": vault_id,
+        "language": profile["language"],
+        "register": "default",
+        "scope": ("dir:%s" % args.dir) if args.dir else ("vault" if args.all else "files"),
+        "name": name,
+    }
     for sample in profile.get("samples", []):
         sample_path = Path(sample["source"])
         if is_within(vault, sample_path):
@@ -196,12 +221,24 @@ def main():
         voice_path.write_text(template, encoding="utf-8")
         voice_state = ("created (%s template)" % profile["language"]) if profile["language"] == "en" else "已创建模板"
     else:
+        voice_text = voice_path.read_text(encoding="utf-8", errors="replace")
+        wrong_lang = ((profile["language"] == "en" and "Voice profile" not in voice_text)
+                      or (profile["language"] == "zh" and "Voice profile" in voice_text))
         voice_state = "已存在，保留原内容" if profile["language"] == "zh" else "kept existing content"
+        if wrong_lang:
+            voice_state += "（提示：voice.md 模板语言与画像语言不一致，请按画像语言重写）"
 
     is_en = profile["language"] == "en"
     unit = "words" if is_en else "字"
     print("[OK] %s（language: %s）" % ("voice profile generated" if is_en else "文风画像已生成",
                                       profile["language"]))
+    scope_info = profile.get("language_scope", {})
+    for item in scope_info.get("files_excluded", []):
+        print("[SCOPE] 已剔除语言不符文件：%s（检测 %s，画像 %s）"
+              % (item["path"], item["detected"], profile["language"]))
+    if scope_info.get("segments_dropped"):
+        print("[SCOPE] 已剔除与画像语言不同的段落 %d 段（如长英文引语段）"
+              % scope_info["segments_dropped"])
     print("     stats: %s" % profile_path)
     print("     summary: %s" % markdown_path)
     print("     qualitative: %s（%s）" % (voice_path, voice_state))
