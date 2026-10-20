@@ -17,12 +17,15 @@ CLI：
 """
 
 import argparse
+import hashlib
 import json
 import os
 import sys
+import time
 from pathlib import Path
 
 import nc_core  # noqa: F401  B01-02: 统一 UTF-8 标准流与共享基础工具
+from nc_core import atomic_write_text  # B12-04 manifest 写入
 
 SKILL_ROOT = Path(__file__).resolve().parent.parent
 PACK_ROOT = SKILL_ROOT / "language-packs"
@@ -93,6 +96,51 @@ def _validate_concepts(pack_dir, warnings):
             warnings.append("concepts.json 第 %d 条缺 zh/en 键" % (i + 1))
 
 
+def _read_manifest(pack_dir):
+    path = Path(pack_dir) / "manifest.json"
+    if not path.is_file():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+def verify_manifest(pack_dir):
+    """B12-04：包内 manifest.json 记录每个文件的 sha256；不一致即拒绝。"""
+    manifest = _read_manifest(pack_dir)
+    if manifest is None:
+        return True, []  # 无 manifest 的内置包按原样信任
+    files = manifest.get("files") or {}
+    for rel, digest in files.items():
+        target = Path(pack_dir) / rel
+        if not target.is_file():
+            return False, ["manifest 列出的文件缺失: %s" % rel]
+        data = target.read_bytes()
+        actual = hashlib.sha256(data).hexdigest()
+        if actual != digest:
+            return False, ["文件完整性不符: %s" % rel]
+    return True, []
+
+
+def write_manifest(pack_dir):
+    """为包目录生成 manifest.json（发包前调用）。"""
+    pack_dir = Path(pack_dir)
+    files = {}
+    for f in sorted(pack_dir.rglob("*")):
+        if f.is_file() and f.name != "manifest.json":
+            rel = f.relative_to(pack_dir).as_posix()
+            files[rel] = hashlib.sha256(f.read_bytes()).hexdigest()
+    manifest = _read_manifest(pack_dir) or {}
+    manifest["files"] = files
+    manifest.setdefault("pack_version", "0.0.0")
+    manifest.setdefault("channel", "stable")
+    atomic_write_text(pack_dir / "manifest.json",
+                      json.dumps(manifest, ensure_ascii=False,
+                                  indent=2) + chr(10))
+    return manifest
+
+
 def validate_pack(pack, lang):
     """返回错误列表；空列表 = 可激活。"""
     errors = []
@@ -108,6 +156,9 @@ def validate_pack(pack, lang):
     if not isinstance(rules, list) or not rules:
         errors.append("rules 缺失或为空")
     else:
+        # B12-03 限额：规则数量/模式长度/词条规模/包体积受限
+        if len(rules) > 200:
+            errors.append("rules 数量 %d 超过上限 200" % len(rules))
         seen_ids = set()
         for i, rule in enumerate(rules):
             rid = rule.get("id")
@@ -120,6 +171,23 @@ def validate_pack(pack, lang):
                 errors.append("rules[%s] 缺 guidance" % rid)
             if rule.get("kind") not in ("deterministic", "contextual", "guidance", None):
                 errors.append("rules[%s] kind 非法: %r" % (rid, rule.get("kind")))
+            status = rule.get("status", "stable")
+            if status not in ("stable", "candidate", "deprecated"):
+                errors.append("rules[%s] status 非法: %r" % (rid, status))
+            pattern = rule.get("pattern")
+            if pattern is not None:
+                if len(str(pattern)) > 500:
+                    errors.append("rules[%s] pattern 超过 500 字符上限" % rid)
+                else:
+                    try:
+                        import re
+                        re.compile(str(pattern))
+                    except re.error as exc:
+                        errors.append("rules[%s] pattern 无法编译: %s" % (rid, exc))
+    terms = pack.get("terms") or {}
+    for key, value in terms.items():
+        if isinstance(value, list) and len(value) > 500:
+            errors.append("terms.%s 数量 %d 超过上限 500" % (key, len(value)))
     if not pack.get("pack_version"):
         errors.append("pack_version 缺失")
     return errors
@@ -132,16 +200,102 @@ def load_pack(lang, root=None):
     if not path.is_file():
         return None, ["语言包缺失: %s" % path]
     try:
+        if path.stat().st_size > 2 * 1024 * 1024:
+            return None, ["pack.json 超过 2MB 体积上限（B12-03）"]
         pack = json.loads(path.read_text(encoding="utf-8"))
     except ValueError as exc:
         return None, ["语言包无法解析 %s: %s" % (path, exc)]
+    ok_manifest, manifest_problems = verify_manifest(path.parent)
+    if not ok_manifest:
+        return None, ["完整性校验未通过（B12-04）：%s" % "；".join(manifest_problems)]
     errors = validate_pack(pack, lang)
     if errors:
         return None, ["语言包校验未通过 %s：%s" % (path, "；".join(errors))]
+    # B12-05/10：渠道与规则状态过滤
+    channel = os.environ.get("NC_PACK_CHANNEL", "stable")
+    manifest = _read_manifest(path.parent)
+    pack_channel = (manifest or {}).get("channel", "stable")
+    if pack_channel != channel:
+        warnings.append("渠道不匹配：包为 %s，当前渠道 %s（candidate 规则不生效）"
+                        % (pack_channel, channel))
+    kept = []
+    for rule in pack.get("rules", []):
+        status = rule.get("status", "stable")
+        if status == "deprecated":
+            warnings.append("规则 %s 已废弃，未加载" % rule.get("id"))
+            continue
+        if status == "candidate" and channel != "experimental":
+            warnings.append("规则 %s 为 candidate，仅 experimental 渠道加载"
+                            % rule.get("id"))
+            continue
+        kept.append(rule)
+    pack["rules"] = kept
     _validate_terminology(path.parent, warnings)
     _validate_examples(path.parent, warnings)
     _validate_concepts(path.parent, warnings)
     return pack, warnings
+
+
+def install_pack(lang, src_dir):
+    """安装：校验 → 备份当前 → 换装（B12-04）。"""
+    import shutil
+    src_dir = Path(src_dir)
+    pack_file = src_dir / "pack.json"
+    if not pack_file.is_file():
+        print("[ERROR] 来源目录缺少 pack.json: %s" % src_dir, file=sys.stderr)
+        sys.exit(2)
+    try:
+        data = json.loads(pack_file.read_text(encoding="utf-8"))
+    except ValueError as exc:
+        print("[ERROR] pack.json 无法解析: %s" % exc, file=sys.stderr)
+        sys.exit(2)
+    errors = validate_pack(data, lang)
+    if errors:
+        print("[STOP] 来源包校验未通过：%s" % "；".join(errors), file=sys.stderr)
+        sys.exit(2)
+    write_manifest(src_dir)
+    dest = pack_path(lang).parent
+    dest.mkdir(parents=True, exist_ok=True)
+    version = str(data.get("pack_version", "0"))
+    if any(dest.iterdir()):
+        stamp = "%d" % int(time.time() * 1000)  # 毫秒级，避免同秒冲突
+        backup_root = pack_root() / ".backup"
+        backup_root.mkdir(parents=True, exist_ok=True)
+        bdir = backup_root / ("%s-prev-%s" % (dest.name, stamp))
+        shutil.copytree(dest, bdir)
+        (backup_root / (dest.name + ".latest")).write_text(bdir.name, encoding="utf-8")
+    shutil.rmtree(dest)
+    shutil.copytree(src_dir, dest)
+    home = str(Path.home())
+    shown = str(dest).replace(home, "~") if str(dest).startswith(home) else str(dest)
+    print("[OK] 已安装 %s v%s -> %s（上一版本已备份）" % (lang, version, shown))
+    sys.exit(0)
+
+
+def rollback_pack(lang):
+    """回退到最近一次安装前的备份（回退本身也可再回退，B12-06）。"""
+    import shutil
+    dest = pack_path(lang).parent
+    name = dest.name
+    latest = pack_root() / ".backup" / (name + ".latest")
+    if not latest.is_file():
+        print("[STOP] 没有可用备份。", file=sys.stderr)
+        sys.exit(2)
+    src = pack_root() / ".backup" / latest.read_text(encoding="utf-8").strip()
+    if not src.is_dir():
+        print("[STOP] 备份目录缺失：%s" % src, file=sys.stderr)
+        sys.exit(2)
+    stamp = "%d" % int(time.time() * 1000)  # 毫秒级，避免同秒冲突
+    keep = pack_root() / ".backup" / ("%s-rollback-%s" % (name, stamp))
+    if dest.exists():
+        shutil.copytree(dest, keep)
+    shutil.rmtree(dest)
+    shutil.copytree(src, dest)
+    (latest.parent / (name + ".latest")).write_text(keep.name, encoding="utf-8")
+    home = str(Path.home())
+    shown = str(keep).replace(home, "~") if str(keep).startswith(home) else str(keep)
+    print("[OK] 已回退 %s（回退前的状态保留在 %s）" % (lang, shown))
+    sys.exit(0)
 
 
 def main():
@@ -150,7 +304,22 @@ def main():
     ap.add_argument("--json", action="store_true", help="输出 JSON")
     ap.add_argument("--pack-root", help="语言包根目录（默认 skill 内 language-packs；"
                                         "可用 NOTE_CURATOR_PACK_ROOT 覆盖）")
+    ap.add_argument("--write-manifest", action="store_true",
+                    help="为该语言包目录生成完整性清单（发包前，B12-04）")
+    ap.add_argument("--install", metavar="SRC",
+                    help="安装来源目录的语言包（校验 + 备份 + 换装）")
+    ap.add_argument("--rollback", action="store_true",
+                    help="回退到最近一次安装前的备份（B12-06）")
     args = ap.parse_args()
+
+    if args.write_manifest:
+        manifest = write_manifest(pack_path(args.lang).parent)
+        print("[OK] manifest 已生成（%d 个文件）" % len(manifest.get("files", {})))
+        sys.exit(0)
+    if args.install:
+        install_pack(args.lang, args.install)
+    if args.rollback:
+        rollback_pack(args.lang)
 
     pack, warnings = load_pack(args.lang, root=args.pack_root)
     payload = {

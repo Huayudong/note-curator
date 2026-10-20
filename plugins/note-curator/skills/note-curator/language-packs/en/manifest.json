@@ -1,0 +1,10 @@
+{
+  "files": {
+    "concepts.json": "e5eea72f1765f056e973b80f76c00e2cf970b4e120ecd33bc4ccc1390851233c",
+    "examples.jsonl": "745d9bbb2f39082b6523964aae0c164245b19b661a65601764b69d01b143e3f0",
+    "pack.json": "0e385558a9e9872764c374e9a9b9314a6cde70ae35edc251de80ed8f56337f33",
+    "terminology.json": "b31c2f0902c3ce28148018f21eade5bb974264aaa34a4c673992a1aa7d600fbe"
+  },
+  "pack_version": "0.0.0",
+  "channel": "stable"
+}

@@ -30,3 +30,5 @@ jobs:
         run: python tests/run_b10_tests.py
       - name: 稳定性测试（B11）
         run: python tests/run_b11_tests.py
+      - name: 语言包维护测试（B12）
+        run: python tests/run_b12_tests.py

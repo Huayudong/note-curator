@@ -193,6 +193,24 @@ tasks. No default strategy changed because of evaluation results.
 - **Performance benchmark**: `perf_bench.py --notes N` is reproducible (full/incremental index, search, and scan timings plus memory peak on a synthetic vault).
 - **Path torture**: Chinese+space directories, extra-long filenames, and NFD combined characters are covered by write/undo/index/search regressions.
 
-## License## License## License
+## Language-pack maintenance (B12)
+
+- **Integrity manifest**: `language-packs/*/manifest.json` records a sha256 per
+  file; packs are verified at load and tampered packs are refused.
+  `--write-manifest` generates it before release.
+- **Channels and rule status**: stable (default, candidate rules inactive) /
+  experimental (`NC_PACK_CHANNEL=experimental`); lifecycle candidate → stable →
+  deprecated. See
+  [language-packs/CONTRIBUTING.md](plugins/note-curator/skills/note-curator/language-packs/CONTRIBUTING.md).
+- **Limits**: ≤200 rules, patterns ≤500 chars and must compile, ≤500 terms per
+  list, pack.json ≤2MB — over-limit packs are refused.
+- **Install and rollback**: `resource_pack.py --lang zh --install <dir>`
+  (verify + backup + swap), `--rollback` (reversible); `pack_compare.py`
+  diffs old/new packs on sample drafts.
+- **Docs**: [install](docs/install.md) · [learning](docs/learning.md) ·
+  [migration](docs/migration.md) · [privacy](docs/privacy.md) ·
+  [troubleshooting](docs/troubleshooting.md) · [release](docs/release.md).
+
+## License## License## License## License
 
 [MIT](LICENSE)

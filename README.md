@@ -223,6 +223,23 @@ python plugins/note-curator/skills/note-curator/scripts/style_check.py \
 - **性能基准**：`perf_bench.py --notes N` 可复跑（合成库上的全量/增量索引、检索、扫描计时与内存峰值）。
 - **路径拷打**：中文+空格目录、超长文件名、NFD 组合字符的写入/撤销/索引/检索有回归覆盖。
 
-## License## License## License
+## 语言库维护（B12）
+
+- **完整性清单**：`language-packs/*/manifest.json` 记录每个文件的 sha256，
+  加载前校验，被篡改的包拒绝激活；`--write-manifest` 发包前生成。
+- **渠道与规则状态**：stable（默认，candidate 规则不生效）/ experimental
+  （`NC_PACK_CHANNEL=experimental`）；规则生命周期 candidate → stable →
+  deprecated（废弃不加载）。贡献流程见
+  [language-packs/CONTRIBUTING.md](plugins/note-curator/skills/note-curator/language-packs/CONTRIBUTING.md)。
+- **限额**：规则 ≤200 条、pattern ≤500 字符且必须可编译、terms ≤500 项、
+  pack.json ≤2MB——超限拒绝加载，绝不带病运行。
+- **安装与回退**：`resource_pack.py --lang zh --install <目录>`（校验 + 备份 +
+  换装）、`--rollback`（可逆，回退本身也可再回退）；
+  `pack_compare.py` 在样例草稿上对比新旧包效果。
+- **文档**：[安装](docs/install.md) · [学习](docs/learning.md) ·
+  [迁移](docs/migration.md) · [隐私](docs/privacy.md) ·
+  [故障排查](docs/troubleshooting.md) · [发布与渠道](docs/release.md)。
+
+## License## License## License## License
 
 [MIT](LICENSE)

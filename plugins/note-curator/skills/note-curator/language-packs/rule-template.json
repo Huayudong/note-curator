@@ -1,0 +1,15 @@
+{
+  "id": "zh.category.short-name",
+  "language": "zh-CN",
+  "category": "ai_tell",
+  "severity": "suggestion",
+  "kind": "deterministic",
+  "status": "candidate",
+  "guidance": "一句话说明为什么要提示、怎么改（写给用户看）。",
+  "pattern": "在此填写可编译的正则（仅 deterministic 规则；≤500 字符）",
+  "bad_example": "反例句子。",
+  "better_example": "改写后的句子（不得引入来源没有的事实）。",
+  "exceptions": ["引语", "用户明确保留的口吻"],
+  "test_hint": "描述预期命中与不命中的最小用例",
+  "source_basis": "规则来源依据（语法书/语料/自查清单）与许可"
+}
