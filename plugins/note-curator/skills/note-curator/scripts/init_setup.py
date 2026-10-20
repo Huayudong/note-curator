@@ -20,6 +20,8 @@ init_setup.py — note-curator 首次初始化：从 config.example.yaml 生成�
 import argparse
 import re
 import sys
+import nc_core  # noqa: F401  B01-02: 统一 UTF-8 标准流与共享基础工具
+import safe_yaml
 from pathlib import Path
 
 SKILL_ROOT = Path(__file__).resolve().parent.parent
@@ -125,6 +127,18 @@ def main():
     cfg.parent.mkdir(parents=True, exist_ok=True)
     cfg.write_text(render_template(load_example(), vault, author), encoding="utf-8")
     print(t("generated") + str(cfg))
+
+    # B01-12：写完即做 schema 校验，未知键只提示不删除
+    try:
+        parsed, warns = safe_yaml.loads(cfg.read_text(encoding="utf-8"))
+        errors, warnings2 = safe_yaml.validate_config(parsed)
+        for warning in warns + warnings2:
+            print("[提示] 配置校验：%s" % warning, file=sys.stderr)
+        if errors:
+            print("[警告] 配置 schema 校验未通过：%s" % "；".join(errors),
+                  file=sys.stderr)
+    except ValueError as exc:
+        print("[警告] 配置解析异常：%s" % exc, file=sys.stderr)
 
     if vault:
         vp = Path(vault)

@@ -34,6 +34,7 @@ import argparse
 import json
 import re
 import sys
+import nc_core  # noqa: F401  B01-02: 统一 UTF-8 标准流与共享基础工具
 from collections import Counter
 from pathlib import Path
 
@@ -57,7 +58,9 @@ def _stem_en(word: str) -> str:
 
     只追求「同词根归一」，不追求语言学正确；中文 token 原样返回。
     """
-    w = word.lower().removesuffix("'s")
+    w = word.lower()
+    if w.endswith("'s"):
+        w = w[:-2]  # 兼容 Python 3.8（该版本没有 str.removesuffix）
     if re.fullmatch(r"[a-z]+", w):
         if w.endswith("ies") and len(w) > 4:
             w = w[:-3] + "y"

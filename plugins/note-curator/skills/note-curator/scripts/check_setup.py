@@ -16,6 +16,8 @@ import json
 import os
 import re
 import sys
+import nc_core  # noqa: F401  B01-02: 统一 UTF-8 标准流与共享基础工具
+import safe_yaml
 from pathlib import Path
 
 SKILL_ROOT = Path(__file__).resolve().parent.parent
@@ -66,28 +68,21 @@ def unquote(value):
 
 
 def parse_config(path):
-    """只解析 vault_path 和 frontmatter.author，避免引入 YAML 依赖。"""
-    text = path.read_text(encoding="utf-8", errors="ignore")
-    vault = None
-    author = None
-    in_frontmatter = False
-    for line in text.splitlines():
-        if not line.strip() or line.lstrip().startswith("#"):
-            continue
-        if re.match(r"^frontmatter:\s*(?:#.*)?$", line):
-            in_frontmatter = True
-            continue
-        if in_frontmatter and line and not line[0].isspace():
-            in_frontmatter = False
-        match = re.match(r"^vault_path:\s*(.*)$", line)
-        if match:
-            vault = unquote(match.group(1))
-            continue
-        if in_frontmatter:
-            match = re.match(r"^\s+author:\s*(.*)$", line)
-            if match:
-                author = unquote(match.group(1))
-    return vault, author
+    """用 safe_yaml 解析完整配置（B01-12/G18）；返回 (vault, author, extras)。
+
+    不支持的 YAML 构造会抛 ValueError，由调用方按「配置无法读取」处理。
+    """
+    data, warnings = safe_yaml.loads(path.read_text(encoding="utf-8",
+                                                    errors="ignore"))
+    vault = data.get("vault_path")
+    author = (data.get("frontmatter") or {}).get("author")
+    extras = {}
+    unknown = [k for k in data if k not in safe_yaml.SCHEMA]
+    if unknown:
+        extras["unknown_fields"] = unknown
+    if warnings:
+        extras["schema_warnings"] = warnings
+    return vault, author, extras
 
 
 def resolve_config(explicit=None):
@@ -128,12 +123,13 @@ def main():
 
     config_path = resolve_config(args.config)
     lang = args.lang
+    extras = {}
 
     if not config_path.is_file():
         result = result_for("missing_config", lang, config_path)
     else:
         try:
-            vault, author = parse_config(config_path)
+            vault, author, extras = parse_config(config_path)
         except Exception as exc:
             result = result_for("config_invalid", lang, config_path, detail=exc)
         else:
@@ -157,6 +153,9 @@ def main():
                                     str(vault_path), author)
             else:
                 result = result_for("ok", lang, config_path, str(vault_path), author)
+
+    if extras:
+        result.update(extras)
 
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2))

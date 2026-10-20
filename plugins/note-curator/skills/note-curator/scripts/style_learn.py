@@ -24,6 +24,7 @@ import argparse
 import datetime
 import json
 import sys
+import nc_core  # noqa: F401  B01-02: 统一 UTF-8 标准流与共享基础工具
 from pathlib import Path
 
 from style_metrics import analyze_corpus, clean_markdown, detect_language, profile_to_markdown
@@ -92,9 +93,18 @@ def main():
         sys.exit(2)
 
     if args.sample and args.sample > 0 and len(existing) > args.sample:
-        dropped = existing[:-args.sample]
-        existing = existing[-args.sample:]
-        print("[INFO] 滚动窗口保留最近 %d 篇，丢弃 %d 篇旧语料"
+        def _mtime(rel):
+            p = Path(rel)
+            if not p.is_absolute():
+                p = vault / rel
+            try:
+                return p.stat().st_mtime
+            except OSError:
+                return 0.0
+        ordered = sorted(existing, key=_mtime, reverse=True)
+        existing = ordered[:args.sample]
+        dropped = ordered[args.sample:]
+        print("[INFO] 滚动窗口按样本时间保留最新 %d 篇，淘汰 %d 篇较旧语料"
               % (args.sample, len(dropped)), file=sys.stderr)
 
     files = []

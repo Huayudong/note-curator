@@ -26,6 +26,7 @@ import argparse
 import json
 import re
 import sys
+import nc_core  # noqa: F401  B01-02: 统一 UTF-8 标准流与共享基础工具
 from pathlib import Path
 
 from style_metrics import analyze_corpus, profile_to_markdown

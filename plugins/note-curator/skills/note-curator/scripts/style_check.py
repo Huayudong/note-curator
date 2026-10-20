@@ -14,6 +14,7 @@ style_check.py — 把草稿和文风画像做确定性对比，指出明显的�
 import argparse
 import json
 import sys
+import nc_core  # noqa: F401  B01-02: 统一 UTF-8 标准流与共享基础工具
 from pathlib import Path
 
 from style_metrics import analyze_text, compare_profiles, LABELS

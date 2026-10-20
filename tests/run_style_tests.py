@@ -246,14 +246,31 @@ def main():
         check("zh query auto-filters to zh", all(h.get("language") != "en" for h in hits2),
               r.stdout[:200])
 
-        # 界面文案
-        r = run([SCRIPTS / "check_setup.py", "--lang", "en", "--json"])
+        # 界面文案（--config 指向临时路径，与本机真实配置隔离，B01-01）
+        r = run([SCRIPTS / "check_setup.py", "--lang", "en", "--json",
+                 "--config", tmp / "no-such-config.yaml"])
         check("check_setup en messages", "No note-curator configuration" in r.stdout,
               r.stdout[:200])
         r = run([SCRIPTS / "init_setup.py", "--vault", tmp / "v-en", "--author", "T",
                  "--config", tmp / "cfg-en.yaml", "--lang", "en"])
         check("init_setup en messages", "[OK] Generated" in r.stdout and "Next:" in r.stdout,
               r.stdout[:300])
+
+        # --- 10. B01：配置 schema 校验（safe_yaml）---
+        (tmp / "v-en").mkdir(exist_ok=True)
+        cfg_b01 = tmp / "cfg-b01.yaml"
+        cfg_b01.write_text(
+            'vault_path: "%s"\n'
+            "frontmatter:\n"
+            '  author: "T"\n'
+            "some_unknown_key: 1\n" % (tmp / "v-en").as_posix(),
+            encoding="utf-8")
+        r = run([SCRIPTS / "check_setup.py", "--json", "--config", cfg_b01])
+        data = json.loads(r.stdout)
+        check("check_setup ok with valid config",
+              data.get("status") == "ok" and data.get("ok") is True, r.stdout[:300])
+        check("check_setup reports unknown fields",
+              data.get("unknown_fields") == ["some_unknown_key"], r.stdout[:300])
 
     print("")
     if FAILURES:

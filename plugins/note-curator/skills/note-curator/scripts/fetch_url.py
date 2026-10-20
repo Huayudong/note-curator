@@ -23,6 +23,7 @@ import argparse
 import html
 import re
 import sys
+import nc_core  # noqa: F401  B01-02: 统一 UTF-8 标准流与共享基础工具
 import urllib.request
 import urllib.error
 

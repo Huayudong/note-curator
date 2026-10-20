@@ -28,6 +28,7 @@ frontmatter 有哪些字段？——然后照着这个风格写，新笔记才�
 import argparse
 import re
 import sys
+import nc_core  # noqa: F401  B01-02: 统一 UTF-8 标准流与共享基础工具
 from collections import Counter
 from pathlib import Path
 

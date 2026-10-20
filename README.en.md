@@ -11,13 +11,15 @@ note-curator is an open-source Agent Skill for Chinese note curation. It fetches
 - **Link or draft → note**: fetch a URL or read a local draft, then produce a structured Chinese note.
 - **Two note types**: knowledge notes for concepts and explanations, experiment notes for setup, method, data, and conclusions.
 - **Vault-wide deduplication**: keyword pre-filter plus semantic judgment before writing; queries are matched within the same language by default, with light English stemming (caching/cache/caches share a root) and title weighting.
-- **Merge instead of duplicate**: append new knowledge, correct only clear errors, preview the diff, then write.
-- **Obsidian backlinks**: link concepts to existing notes with title-first matching and a confidence threshold.
+- **Merge instead of duplicate**: append new knowledge, correct only clear errors, preview the diff, then write through a plan → apply → undo transaction.
+- **Write safety**: every write goes through a WritePlan with base-hash conflict checks, atomic replacement, controlled backups, path containment (no absolute paths, `..`, symlink escapes, Windows reserved names, or case-only collisions), an undo command, and a write log.
+- **Obsidian backlinks**: link concepts to existing notes with title-first matching and a confidence threshold; links live where the concept appears in the body — no "Related notes" list at the end.
+- **Topic focus**: one note answers one question; longer side topics are deduplicated first and split into complete child notes when truly needed, linked from the body.
 - **Style-aware formatting**: mirror the target folder's frontmatter, heading levels, list markers, emphasis, and structural density.
 - **Local voice profile**: measure sentence length, punctuation, pronouns, particles, connectors, sentence openers, and rhetorical habits; the agent reads sample notes and completes a qualitative `voice.md`.
 - **Pre-write style check**: compare a draft with the profile and flag clear deviations.
 - **Small frontmatter contract**: `author`, `created`, and `tags` only; tags are capped at three and must describe the note.
-- **No third-party Python dependencies**: Python 3.8+ and the standard library.
+- **No third-party Python dependencies**: the standard library only; syntax supports Python 3.8+, and CI tests 3.10 / 3.13 on Windows and Linux (scripts force UTF-8 stdio, so the default Windows codepage works).
 
 ## Install
 
@@ -90,12 +92,12 @@ Organize this article into my notes: <URL>
 Archive this draft: ...
 ```
 
-The skill shows a diff preview before writing.
+The skill shows a diff preview before writing; apply with `--apply`, then undo with `undo --run <run_id>` if needed.
 
 ## How it works
 
 ```text
-input → fetch/read → deduplicate → merge or create → style check → preview → write
+input → fetch/read → deduplicate → merge or create → style check → preview → apply → undoable
 ```
 
 The merge path appends new knowledge and edits only clear errors. The create path learns the target folder's formatting and, when enabled, the local voice profile before drafting.
@@ -122,7 +124,7 @@ The result is consistent / minor deviation / major deviation. A language mismatc
 
 Chinese profiles get extra depth: 把/被 construction density, four-character phrases, colloquialisms, 顿号 and 《》 punctuation, Latin-mixing density, and AI-tell blacklist hits (aligned with the writing guide) that are flagged directly when they appear in a draft but not in the profile.
 
-The profile keeps learning: after you edit a note, ask the agent to "learn from this note" and `style_learn.py` folds your edited version back into the profile (rolling window, language-checked, with history). Only your edits are learned — never the plugin's own drafts.
+The profile keeps learning: after you edit a note, ask the agent to "learn from this note" and `style_learn.py` folds your edited version back into the profile (sample-time rolling window, language-checked, with history). Only your edits are learned — never the plugin's own drafts.
 
 ## Configuration
 
