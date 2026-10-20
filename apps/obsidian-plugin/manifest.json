@@ -1,0 +1,9 @@
+{
+  "id": "note-curator",
+  "name": "Note Curator 笔记管家",
+  "version": "2.4.0",
+  "minAppVersion": "1.5.0",
+  "description": "整理当前笔记/学习改稿/偏好管理——与外部 Agent Skill 共用同一核心（统一写入事务、画像与语言包）。",
+  "author": "Huayudong",
+  "isDesktopOnly": true
+}

@@ -61,7 +61,15 @@ note-curator 是一个开源的中文笔记整理 Agent Skill：抓取文章或�
 - **一套源码，三种插件**：ZCode、Claude Code、Codex / ChatGPT 共用 `plugins/note-curator/skills/note-curator/`。
 - **独立 skill 可用**：任何支持 Agent Skills 的客户端都能直接使用。
 
-## 安装
+## Obsidian 原生插件（B09 预览）
+
+`apps/obsidian-plugin/`：在 Obsidian 内整理当前笔记（生成 → 预览 → 应用/撤销）、
+学习这次修改（候选确认才生效）、偏好管理与写入日志——与外部 Agent Skill
+**共用同一核心与状态**。保存事件只做发现，绝不自动学习；API key 走环境变量
+或插件本地数据，不进笔记与日志。安装与已测版本边界见
+[插件说明](apps/obsidian-plugin/README.md)。
+
+## 安装## 安装
 
 插件根目录是 `plugins/note-curator/`，技能源码在 `plugins/note-curator/skills/note-curator/`。所有客户端共用同一份技能。
 

@@ -24,3 +24,5 @@ jobs:
         run: python tests/run_style_tests.py
       - name: 写入事务回归（B01）
         run: python tests/run_write_tests.py
+      - name: 插件契约测试（B09）
+        run: python tests/run_plugin_contract.py

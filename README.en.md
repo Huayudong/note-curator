@@ -32,7 +32,16 @@ note-curator is an open-source Agent Skill for Chinese note curation. It fetches
 - **Small frontmatter contract**: `author`, `created`, and `tags` only; tags are capped at three and must describe the note.
 - **No third-party Python dependencies**: the standard library only; syntax supports Python 3.8+, and CI tests 3.10 / 3.13 on Windows and Linux (scripts force UTF-8 stdio, so the default Windows codepage works).
 
-## Install
+## Obsidian native plugin (B09 preview)
+
+`apps/obsidian-plugin/`: organize the current note (generate → preview → apply/undo),
+learn this edit (candidates require explicit confirmation), preference management and
+the write log — sharing the same core and state as the external Agent Skill. Save
+events are discovery-only (never auto-learning); the API key goes through an env
+var or the plugin's local data, never into notes or logs. See
+[plugin README](apps/obsidian-plugin/README.md).
+
+## Install## Install
 
 The plugin root is `plugins/note-curator/`; the skill itself is `plugins/note-curator/skills/note-curator/`. The same skill is used by every target.
 
