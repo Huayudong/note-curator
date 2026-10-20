@@ -13,6 +13,7 @@ run_style_tests.py — note-curator 文风语言包的端到端测试。
 """
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -47,6 +48,9 @@ def main():
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
+        # B05：write_note 会落计划/基线/备份，统一隔离到临时 home，不碰真实 ~/.note-curator
+        os.environ["NOTE_CURATOR_HOME"] = str(tmp / "nchome")
+        (tmp / "nchome").mkdir()
 
         # --- 1. 语言检测 ---
         check("detect zh", langdetect.detect_language(ZH_EXAMPLE.read_text(encoding="utf-8")) == "zh")
@@ -444,6 +448,47 @@ def main():
               and rep4["budget"]["unit"] == "字"
               and rep4["budget"]["within_soft"] is True,
               str(rep4["budget"])[:150])
+
+        # --- 14. B05: edit learning with candidates, confirm, undo ---
+        b05_dir = tmp / "b05"
+        b05_dir.mkdir()
+        b05_src = b05_dir / "draft.md"
+        b05_src.write_text("值得注意的是，缓存至关重要。综上所述，我们首先设置 TTL。"
+                           "其次是过期时间。最后是抖动。以上就是全部内容。", encoding="utf-8")
+        r = run([SCRIPTS / "write_note.py", "new", "--vault", str(b05_dir),
+                 "--dir", "notes", "--title", "learn-target", "--file", str(b05_src),
+                 "--json", "--apply"])
+        rid5 = json.loads(r.stdout)["run_id"]
+        b05_note = b05_dir / "notes" / "learn-target.md"
+        b05_note.write_text("缓存能减少查询，但数据更新后旧值仍可能被读取。"
+                            "过期时间要设置，失效时间再叠加随机抖动。", encoding="utf-8")
+        r = run([SCRIPTS / "learn_edit.py", "diff", "--profile", str(zh2_profile),
+                 "--note", str(b05_note), "--baseline-run", rid5, "--json"])
+        check("b05 diff rc0", r.returncode == 0, r.stderr[-250:])
+        ev5 = json.loads(r.stdout)
+        check("b05 candidates extracted",
+              any(c["type"] == "avoid_phrase" for c in ev5["candidates"]),
+              json.dumps(ev5["candidates"], ensure_ascii=False)[:150])
+        r = run([SCRIPTS / "learn_edit.py", "diff", "--profile", str(zh2_profile),
+                 "--note", str(b05_note), "--baseline-run", rid5])
+        check("b05 re-diff idempotent rc2", r.returncode == 2, "rc=%s" % r.returncode)
+        r = run([SCRIPTS / "learn_edit.py", "candidates",
+                 "--profile", str(zh2_profile), "--json"])
+        rows5 = json.loads(r.stdout)
+        cid5 = rows5[0]["candidate_id"]
+        r = run([SCRIPTS / "learn_edit.py", "confirm", "--profile", str(zh2_profile),
+                 "--candidate", cid5])
+        check("b05 confirm rc0", r.returncode == 0, r.stderr[-150:])
+        r = run([SCRIPTS / "learn_edit.py", "reject", "--profile", str(zh2_profile),
+                 "--candidate", cid5])
+        check("b05 reject confirmed refused rc2", r.returncode == 2,
+              "rc=%s" % r.returncode)
+        r = run([SCRIPTS / "learn_edit.py", "undo", "--profile", str(zh2_profile),
+                 "--event", ev5["event_id"]])
+        check("b05 undo rc0", r.returncode == 0, r.stderr[-150:])
+        r = run([SCRIPTS / "learn_edit.py", "undo", "--profile", str(zh2_profile),
+                 "--event", ev5["event_id"]])
+        check("b05 re-undo idempotent rc2", r.returncode == 2, "rc=%s" % r.returncode)
 
     print("")
     if FAILURES:
