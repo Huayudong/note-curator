@@ -32,3 +32,5 @@ jobs:
         run: python tests/run_b11_tests.py
       - name: 语言包维护测试（B12）
         run: python tests/run_b12_tests.py
+      - name: 配置硬闸门测试（B13）
+        run: python tests/run_b13_tests.py

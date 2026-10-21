@@ -240,6 +240,17 @@ python plugins/note-curator/skills/note-curator/scripts/style_check.py \
   [迁移](docs/migration.md) · [隐私](docs/privacy.md) ·
   [故障排查](docs/troubleshooting.md) · [发布与渠道](docs/release.md)。
 
-## License## License## License## License
+## 配置硬闸门（B13）
+
+- **插件形态强制配置**：ZCode / Claude Code 插件自带 `hooks/vault_gate.py`
+  （PreToolUse 钩子），每次技能调用前自动运行与第 0 步相同的配置检查；
+  配置缺失、vault 路径无效或署名为空时**直接拒绝本次调用**，并给出引导流程
+  （问路径与署名 → `init_setup.py` → 复检）——保存路径没配好，就不可能
+  生成或写入笔记。
+- **fail-open 保险丝**：闸门自身异常（Python 不在 PATH、脚本缺失、超时）
+  一律放行，不把插件卡死；非插件形态仍由 SKILL.md 第 0 步软约束兜底。
+- 细节见[安装](docs/install.md)「配置硬闸门」。
+
+## License
 
 [MIT](LICENSE)

@@ -36,6 +36,7 @@ python scripts/check_setup.py --json
 - **用户明确说「先看效果，不配置」**：只输出一小段预览（不超过约 300 字，或只给一个要点），标注「预览，未归档」；不要输出完整笔记。配置完成后才能完整整理和归档。
 - `vault_path` 为空、路径不存在、指向文件、`author` 为空，都按未配置处理；不要绕过，也不要自动改用别的目录。
 - 已经配置过但路径失效：先拦截，说明失效路径，让用户确认新路径；不要猜测新目录。
+- **插件形态（ZCode / Claude Code）另有硬闸门**：`hooks/vault_gate.py` 会在每次技能调用前自动运行同一套检查，未就绪时直接拒绝本次调用并把原因与引导流程写进拦截信息——按上面的步骤处理即可，不要尝试绕过。其他 Agent 形态没有闸门，本节第 0 步是唯一约束，不可跳过。
 
 初始化与配置要点：`init_setup.py` 从 `config.example.yaml` 生成个人配置（保留全部注释），默认写到 `~/.note-curator/config.yaml`；如果 `<本skill目录>/config.yaml` 已存在则沿用旧文件。`check_setup.py` 也按「技能目录 `config.yaml` → 用户级 `~/.note-curator/config.yaml`」的顺序查找。`config.yaml` 含个人路径，属个人文件。关键配置：`vault_path`（知识库绝对路径）、`taxonomy`（目录归类规则）、`dedup`（查重阈值与合并流程）、`backlinks`（双链策略）、`style`（人话守则可调项）。
 

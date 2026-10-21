@@ -15,7 +15,7 @@
    清单）→ `resource_pack.py --lang zh --json` 校验通过；
 3. 全部回归：`run_style_tests.py`、`run_write_tests.py`、
    `run_plugin_contract.py`、`run_b10_tests.py`、`run_b11_tests.py`、
-   `run_b12_tests.py`（CI 同）；
+   `run_b12_tests.py`、`run_b13_tests.py`（CI 同）；
 4. 提交 tag；发布说明列出：新增规则（含出处）、行为变化、已知限制。
 
 ## 渠道

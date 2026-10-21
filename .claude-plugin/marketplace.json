@@ -11,7 +11,7 @@
     {
       "name": "note-curator",
       "source": "./plugins/note-curator",
-      "version": "3.0.0",
+      "version": "3.1.0",
       "description": "把网页链接或本地草稿整理成结构化中文笔记，查重合并后归档到 Obsidian 知识库。",
       "displayName": "笔记管家",
       "category": "productivity",

@@ -211,6 +211,19 @@ tasks. No default strategy changed because of evaluation results.
   [migration](docs/migration.md) · [privacy](docs/privacy.md) ·
   [troubleshooting](docs/troubleshooting.md) · [release](docs/release.md).
 
-## License## License## License## License
+## Configuration hard gate (B13)
+
+- **Enforced setup in plugin form**: the ZCode / Claude Code plugin ships
+  `hooks/vault_gate.py` (a PreToolUse hook) that runs the same step-0 config
+  check before every skill invocation; a missing config, dead vault path or
+  empty author **denies the call** and returns the guided flow (ask for path
+  and author → `init_setup.py` → re-check). With no save location configured,
+  notes cannot be generated or written at all.
+- **Fail-open fuse**: any gate-side failure (Python not on PATH, script gone,
+  timeout) lets the call through instead of wedging the plugin; outside plugin
+  hosts, the SKILL.md step-0 check remains the guard.
+- See [install](docs/install.md), section "配置硬闸门".
+
+## License
 
 [MIT](LICENSE)
