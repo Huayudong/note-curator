@@ -69,7 +69,7 @@ note-curator 是一个开源的中文笔记整理 Agent Skill：抓取文章或�
 或插件本地数据，不进笔记与日志。安装与已测版本边界见
 [插件说明](apps/obsidian-plugin/README.md)。
 
-## 安装## 安装
+## 安装
 
 插件根目录是 `plugins/note-curator/`，技能源码在 `plugins/note-curator/skills/note-curator/`。所有客户端共用同一份技能。
 
@@ -159,7 +159,7 @@ python plugins/note-curator/skills/note-curator/scripts/style_profile.py \
   --vault "D:/Obsidian/MyVault" --dir "04 AI" --sample 20
 ```
 
-输出到 `~/.note-curator/style-profiles/<目录名>/`：
+输出到 `~/.note-curator/style-profiles/<目录名>-<语言>/`（B02 起默认带语言后缀，中英文画像分开）：
 
 - `profile.json`：统计指标（含 language 字段）
 - `profile.md`：统计摘要（语言跟随画像）
@@ -169,7 +169,7 @@ python plugins/note-curator/skills/note-curator/scripts/style_profile.py \
 
 ```bash
 python plugins/note-curator/skills/note-curator/scripts/style_check.py \
-  _note.md --profile "~/.note-curator/style-profiles/04-AI/profile.json"
+  _note.md --profile "~/.note-curator/style-profiles/04-AI-zh/profile.json"
 ```
 
 结论分「基本一致 / 轻微偏差 / 明显偏差」；草稿与画像语言不一致时直接报「语言不一致」，不做跨语言比较。这是统计检查，不保证完全复制作者；建议同一目录至少 10 篇或 5000 单位。

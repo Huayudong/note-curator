@@ -41,7 +41,7 @@ events are discovery-only (never auto-learning); the API key goes through an env
 var or the plugin's local data, never into notes or logs. See
 [plugin README](apps/obsidian-plugin/README.md).
 
-## Install## Install
+## Install
 
 The plugin root is `plugins/note-curator/`; the skill itself is `plugins/note-curator/skills/note-curator/`. The same skill is used by every target.
 
@@ -131,13 +131,13 @@ python plugins/note-curator/skills/note-curator/scripts/style_profile.py \
   --vault "D:/Obsidian/MyVault" --dir "04 AI" --sample 20
 ```
 
-This writes `profile.json`, `profile.md`, and a `voice.md` template (in the profile's language) to `~/.note-curator/style-profiles/<name>/`. The agent reads the samples and fills `voice.md` with observations about tone, sentence rhythm, vocabulary, paragraph flow, and punctuation.
+This writes `profile.json`, `profile.md`, and a `voice.md` template (in the profile's language) to `~/.note-curator/style-profiles/<folder>-<language>/` (a language suffix is appended by default since B02, keeping Chinese and English profiles separate). The agent reads the samples and fills `voice.md` with observations about tone, sentence rhythm, vocabulary, paragraph flow, and punctuation.
 
 Check a draft:
 
 ```bash
 python plugins/note-curator/skills/note-curator/scripts/style_check.py \
-  _note.md --profile "~/.note-curator/style-profiles/04-AI/profile.json"
+  _note.md --profile "~/.note-curator/style-profiles/04-AI-zh/profile.json"
 ```
 
 The result is consistent / minor deviation / major deviation. A language mismatch between draft and profile is reported instead of comparing. This is a statistical check, not a guarantee of identical voice. It works best with 10+ notes or 5,000+ units from the same folder.
