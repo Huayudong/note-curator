@@ -49,7 +49,7 @@ The plugin root is `plugins/note-curator/`; the skill itself is `plugins/note-cu
 
 1. Open **Plugin Marketplace → Add → Add Plugin Marketplace**.
 2. Paste `https://github.com/Huayudong/note-curator`.
-3. Install **Note Curator (笔记管家)** from `note-curator-market`.
+3. Install **Note Curator (笔记管家)** from `note-curator`.
 
 This is a custom marketplace source, not an official ZCode marketplace listing.
 
@@ -57,7 +57,7 @@ This is a custom marketplace source, not an official ZCode marketplace listing.
 
 ```bash
 /plugin marketplace add Huayudong/note-curator
-/plugin install note-curator@note-curator-market
+/plugin install note-curator@note-curator
 ```
 
 ### Codex / ChatGPT
@@ -66,7 +66,7 @@ Codex CLI:
 
 ```bash
 codex plugin marketplace add Huayudong/note-curator
-codex plugin add note-curator@note-curator-market
+codex plugin add note-curator@note-curator
 ```
 
 In the ChatGPT desktop app, open the Plugins directory, add or import the repository as a marketplace, then install `note-curator`. Workspace admins can use **Admin → Plugins → Add → Import marketplace** with an empty `Path`.

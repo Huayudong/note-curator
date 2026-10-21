@@ -77,7 +77,7 @@ note-curator 是一个开源的中文笔记整理 Agent Skill：抓取文章或�
 
 1. 打开「插件市场 → 添加 → 添加插件市场」。
 2. 粘贴 `https://github.com/Huayudong/note-curator`。
-3. 在「个人 → note-curator-market」安装「笔记管家」。
+3. 在「个人 → note-curator」安装「笔记管家」。
 
 这是自定义市场源，不等同于 ZCode 官方市场收录。
 
@@ -85,7 +85,7 @@ note-curator 是一个开源的中文笔记整理 Agent Skill：抓取文章或�
 
 ```bash
 /plugin marketplace add Huayudong/note-curator
-/plugin install note-curator@note-curator-market
+/plugin install note-curator@note-curator
 ```
 
 ### Codex / ChatGPT
@@ -94,7 +94,7 @@ Codex CLI：
 
 ```bash
 codex plugin marketplace add Huayudong/note-curator
-codex plugin add note-curator@note-curator-market
+codex plugin add note-curator@note-curator
 ```
 
 ChatGPT 桌面版：打开 Plugins / 插件目录，添加或导入该仓库作为市场，然后安装 `note-curator`。工作区管理员可走 **Admin → Plugins → Add → Import marketplace**，`Path` 留空。

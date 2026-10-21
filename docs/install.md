@@ -3,8 +3,8 @@
 ## Agent Skill（推荐入口）
 
 - ZCode：插件市场 → 添加市场 → 粘贴 `https://github.com/Huayudong/note-curator` → 安装「笔记管家」。
-- Claude Code：`/plugin marketplace add Huayudong/note-curator` 然后 `/plugin install note-curator@note-curator-market`。
-- Codex CLI：`codex plugin marketplace add Huayudong/note-curator` → `codex plugin add note-curator@note-curator-market`。
+- Claude Code：`/plugin marketplace add Huayudong/note-curator` 然后 `/plugin install note-curator@note-curator`。
+- Codex CLI：`codex plugin marketplace add Huayudong/note-curator` → `codex plugin add note-curator@note-curator`。
 - 独立技能：`npx skills add Huayudong/note-curator/plugins/note-curator/skills/note-curator`。
 
 ## Obsidian 原生插件（预览）
