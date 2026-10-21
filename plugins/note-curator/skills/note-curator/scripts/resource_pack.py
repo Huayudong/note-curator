@@ -106,6 +106,14 @@ def _read_manifest(pack_dir):
         return None
 
 
+def hash_text_file(path):
+    """按归一化换行后的 UTF-8 内容哈希：CRLF 与 LF 视为同一内容，
+    Windows 工作副本与 CI 检出的行尾差异不影响完整性校验（B12-04）。"""
+    text = Path(path).read_text(encoding="utf-8")
+    text = text.replace(chr(13) + chr(10), chr(10))
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
 def verify_manifest(pack_dir):
     """B12-04：包内 manifest.json 记录每个文件的 sha256；不一致即拒绝。"""
     manifest = _read_manifest(pack_dir)
@@ -116,8 +124,7 @@ def verify_manifest(pack_dir):
         target = Path(pack_dir) / rel
         if not target.is_file():
             return False, ["manifest 列出的文件缺失: %s" % rel]
-        data = target.read_bytes()
-        actual = hashlib.sha256(data).hexdigest()
+        actual = hash_text_file(target)
         if actual != digest:
             return False, ["文件完整性不符: %s" % rel]
     return True, []
@@ -130,7 +137,7 @@ def write_manifest(pack_dir):
     for f in sorted(pack_dir.rglob("*")):
         if f.is_file() and f.name != "manifest.json":
             rel = f.relative_to(pack_dir).as_posix()
-            files[rel] = hashlib.sha256(f.read_bytes()).hexdigest()
+            files[rel] = hash_text_file(f)
     manifest = _read_manifest(pack_dir) or {}
     manifest["files"] = files
     manifest.setdefault("pack_version", "0.0.0")

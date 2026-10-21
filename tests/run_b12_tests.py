@@ -147,6 +147,20 @@ def main():
         newpack["pack_version"] = "9.9.9"
         (src / "pack.json").write_text(json.dumps(newpack, ensure_ascii=False,
                                                   indent=2), encoding="utf-8")
+        # 行尾不敏感（CI 修复回归）：CRLF/LF 差异不改变内容完整性判定
+        cj = proot / "zh-CN" / "concepts.json"
+        raw_cj = cj.read_text(encoding="utf-8")
+        flipped = (raw_cj.replace(chr(10), chr(13) + chr(10))
+                   if chr(13) not in raw_cj
+                   else raw_cj.replace(chr(13) + chr(10), chr(10)))
+        with open(cj, "w", encoding="utf-8", newline="") as h:
+            h.write(flipped)
+        got, warns = resource_pack.load_pack("zh")
+        check("manifest newline-insensitive", got is not None
+              and got.get("pack_version") == "1.0.0", str(warns)[:150])
+        with open(cj, "w", encoding="utf-8", newline="") as h:
+            h.write(raw_cj)
+
         r = run("resource_pack.py", ["--lang", "zh", "--install", src], pack_env)
         check("install rc0", r.returncode == 0, r.stdout[:120] + r.stderr[-120:])
         installed = json.loads((proot / "zh-CN" / "pack.json")
