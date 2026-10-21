@@ -19,5 +19,5 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
-# 语言包安装备份（B12-06）
+# 语言包安装备份
 **/language-packs/.backup/

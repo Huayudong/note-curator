@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """
-run_b12_tests.py — B12 语言包维护回归测试。
+run_pack_tests.py — 语言包维护回归测试。
 
 覆盖：
-  1. 限额拒绝：规则数/模式长度/非法正则（B12-03）
+  1. 限额拒绝：规则数/模式长度/非法正则
   2. 渠道与规则状态：stable 不加载 candidate/deprecated；
-     experimental 加载 candidate（B12-05/10）
-  3. 完整性清单：tamper 拒绝加载（B12-04）
-  4. install/rollback 往返（B12-06）
-  5. pack_compare 新旧包效果差异（B12-06）
-  6. 贡献模板可解析（B12-01）
+     experimental 加载 candidate
+  3. 完整性清单：tamper 拒绝加载
+  4. install/rollback 往返
+  5. pack_compare 新旧包效果差异
+  6. 贡献模板可解析
 
-用法：python tests/run_b12_tests.py
+用法：python tests/run_pack_tests.py
 退出码：0 全部通过；1 有失败。
 """
 
@@ -75,7 +75,7 @@ def main():
                         dirs_exist_ok=True)
         pack_env = {"NOTE_CURATOR_PACK_ROOT": str(proot)}
 
-        # ---- 1. 限额（B12-03）----
+        # ---- 1. 限额 ----
         pack = base_pack()
         pack["rules"] = [{"id": "r%d" % i, "guidance": "g"} for i in range(201)]
         write_pack(proot, pack)
@@ -103,7 +103,7 @@ def main():
         check("bad regex rejected", got is None
               and any("编译" in w for w in warns), str(warns)[:150])
 
-        # ---- 2. 渠道与规则状态（B12-05/10）----
+        # ---- 2. 渠道与规则状态 ----
         pack = base_pack()
         pack["rules"] = [
             {"id": "stable-one", "guidance": "g", "status": "stable"},
@@ -123,7 +123,7 @@ def main():
                                                               "cand-one"], str(ids))
         os.environ.pop("NC_PACK_CHANNEL", None)
 
-        # ---- 3. 完整性清单（B12-04）----
+        # ---- 3. 完整性清单 ----
         shutil.copytree(PACKS / "zh-CN", proot / "zh-CN",
                         dirs_exist_ok=True)
         r = run("resource_pack.py", ["--lang", "zh", "--write-manifest"], pack_env)
@@ -131,6 +131,11 @@ def main():
         manifest = json.loads((proot / "zh-CN" / "manifest.json")
                               .read_text(encoding="utf-8"))
         check("manifest lists files", len(manifest["files"]) >= 3, str(manifest)[:150])
+        pack_meta = json.loads((proot / "zh-CN" / "pack.json")
+                               .read_text(encoding="utf-8"))
+        check("manifest version matches pack",
+              manifest.get("pack_version") == pack_meta.get("pack_version"),
+              str(manifest.get("pack_version")))
         pf = proot / "zh-CN" / "pack.json"
         pf.write_text(pf.read_text(encoding="utf-8") + " ", encoding="utf-8")
         got, warns = resource_pack.load_pack("zh")
@@ -140,7 +145,7 @@ def main():
         shutil.copytree(PACKS / "zh-CN", proot / "zh-CN",
                         dirs_exist_ok=True)
 
-        # ---- 4. install / rollback（B12-04/06）----
+        # ---- 4. install / rollback ----
         src = td / "src-pack" / "zh-CN"
         src.mkdir(parents=True)
         newpack = base_pack()
@@ -175,7 +180,7 @@ def main():
         again = json.loads((proot / "zh-CN" / "pack.json").read_text(encoding="utf-8"))
         check("rollback back to 9.9.9", again["pack_version"] == "9.9.9")
 
-        # ---- 5. pack_compare（B12-06）----
+        # ---- 5. pack_compare ----
         old_root = td / "old-root"
         old_pack_dir = old_root / "zh-CN"
         old_pack_dir.mkdir(parents=True)
@@ -210,7 +215,7 @@ def main():
                       cmp_res["results"][0]["findings_delta"]),
               json.dumps(cmp_res, ensure_ascii=False)[:300])
 
-        # ---- 6. 贡献模板（B12-01）----
+        # ---- 6. 贡献模板 ----
         tpl = PACKS / "rule-template.json"
         tpl_data = json.loads(tpl.read_text(encoding="utf-8"))
         check("template parses with fields",
@@ -221,7 +226,7 @@ def main():
     if FAILURES:
         print("FAILED: %d test(s): %s" % (len(FAILURES), ", ".join(FAILURES)))
         sys.exit(1)
-    print("All B12 maintenance tests passed.")
+    print("All maintenance tests passed.")
 
 
 if __name__ == "__main__":

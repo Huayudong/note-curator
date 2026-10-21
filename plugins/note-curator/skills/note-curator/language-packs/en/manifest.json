@@ -5,6 +5,6 @@
     "pack.json": "2f290117cddeb4d7305e7776df36759e16e34561965350aedebfeb7443896ccd",
     "terminology.json": "f4300d23671035a9e4d184bfc3469be9f0efdd06934ce14ab236c2d9767765b3"
   },
-  "pack_version": "0.0.0",
+  "pack_version": "1.0.0",
   "channel": "stable"
 }

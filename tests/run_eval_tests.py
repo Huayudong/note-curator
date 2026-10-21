@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-run_b10_tests.py — B10 评测纪律回归测试。
+run_eval_tests.py — 评测纪律回归测试。
 
 覆盖：
-  1. 冻结清单生成与来源篡改拒绝（B10-01）
+  1. 冻结清单生成与来源篡改拒绝
   2. mock 全量评测 8/8 通过 + 报告字段完整
-  3. --sabotage 演示：评测能抓到事实丢失（B10-08）
-  4. blind_compare：偏好率、平局处理、Wilson 区间（B10-07）
-  5. feedback：记录 / 列表 / 转待办任务（B10-08/09）
+  3. --sabotage 演示：评测能抓到事实丢失
+  4. blind_compare：偏好率、平局处理、Wilson 区间
+  5. feedback：记录 / 列表 / 转待办任务
 
-用法：python tests/run_b10_tests.py
+用法：python tests/run_eval_tests.py
 退出码：0 全部通过；1 有失败。
 """
 
@@ -58,7 +58,7 @@ def main():
                         ignore=shutil.ignore_patterns("reports", "tasks",
                                                       "__pycache__"))
 
-        # 1. 冻结生成 + 篡改拒绝（B10-01）
+        # 1. 冻结生成 + 篡改拒绝
         r = run([SCRIPTS / "run_eval.py", "--evals-root", evals_root,
                  "--freeze"], home)
         check("freeze creates manifest", r.returncode == 0, r.stderr[-200:])
@@ -89,7 +89,7 @@ def main():
               and report["layers"] == ["public"]
               and report["pack_version"], str(report)[:200])
 
-        # 3. sabotage 演示：删前半来源 → 评测抓到事实丢失（B10-08）
+        # 3. sabotage 演示：删前半来源 → 评测抓到事实丢失
         r = run([SCRIPTS / "run_eval.py", "--evals-root", evals_root,
                  "--provider", "mock", "--sabotage", "zh-technical"], home)
         check("sabotaged run rc1", r.returncode == 1, "rc=%s" % r.returncode)
@@ -100,7 +100,7 @@ def main():
               sabotaged["pass"] is False and sabotaged["missing_facts"],
               str(sabotaged)[:200])
 
-        # 4. blind_compare 数学（B10-07）
+        # 4. blind_compare 数学
         votes = td / "votes.jsonl"
         rows = ([{"pair_id": str(i), "prefer": "a"} for i in range(7)]
                 + [{"pair_id": str(10 + i), "prefer": "b"} for i in range(3)]
@@ -125,7 +125,7 @@ def main():
               res2["directional_preference"] is None
               and res2["tie_half_sensitivity"]["rate"] == 0.5, str(res2)[:150])
 
-        # 5. feedback 管道（B10-08/09）
+        # 5. feedback 管道
         r = run([SCRIPTS / "feedback.py", "add", "--category", "style_mismatch",
                  "--note", "句长偏长", "--draft", str(td / "d.md")], home)
         check("feedback add rc0", r.returncode == 0, r.stderr[-150:])
@@ -149,7 +149,7 @@ def main():
     if FAILURES:
         print("FAILED: %d test(s): %s" % (len(FAILURES), ", ".join(FAILURES)))
         sys.exit(1)
-    print("All B10 eval-discipline tests passed.")
+    print("All eval-discipline tests passed.")
 
 
 if __name__ == "__main__":

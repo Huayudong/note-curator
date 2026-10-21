@@ -72,7 +72,7 @@ After finishing, sweep the note against the checklist in section C before saving
 | Hollow booster | "robust", "seamless", "game-changer", "supercharge", "unlock the power of", "significantly improves" (with no number behind it) | Use verbs and facts |
 | Coined label | Inventing "the X-style Y" compound nouns as concepts | Use the existing common term |
 
-Source-text AI高频词 delve / leverage / foster / utilize / facilitate should become normal
+Source-text AI-frequent words delve / leverage / foster / utilize / facilitate should become normal
 verbs when the note retells them: examine, use, encourage, help. Do not carry them over.
 
 ---

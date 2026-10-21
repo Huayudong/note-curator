@@ -109,7 +109,7 @@ def os_remove(path):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="健康诊断与维护（B11-10）")
+    ap = argparse.ArgumentParser(description="健康诊断与维护")
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--clean", action="store_true",
                     help="按保留期限清理计划/基线/备份")

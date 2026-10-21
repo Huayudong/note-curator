@@ -10,7 +10,7 @@
 
 持续并入统计画像用 `style_learn.py`（同一篇多次改稿按内容哈希识别为修订刷新）。
 
-## 学习模式（B06）
+## 学习模式
 
 `config style.learning_mode`：
 

@@ -63,12 +63,12 @@
 - 它不是微调模型，不会复制作者的完整语言能力或知识结构。
 - 它不判断内容是否正确，也不判断观点归属；这些仍以原文为准。
 - 主题差异大时，统计检查可能误报。比如写 API 文档和写读书笔记，标点与句长本来就会不同。
-- 样本太少时（低于 5 篇或几千字），画像只适合当参考，不适合当硬性规则。
+- 样本太少时（少于 5 篇或不足 5000 单位），画像只适合当参考，不适合当硬性规则。
 
 ## 语料建议
 
 - 优先用**同一目录、同一 register** 的笔记。技术笔记、日记、邮件不要混在一起建一个画像。
-- 建议至少 10 篇或 5000 字；默认取最近 20 篇（`--sample 20`）。
+- 建议至少 10 篇或 5000 单位（中文按字、英文按词）；默认取最近 20 篇（`--sample 20`）。
 - 样本会取最近修改的笔记；如果最近写的都是同一主题，画像会偏向那个主题。可以手动用 `--files` 指定更有代表性的篇目。
 - 画像里的 `samples` 会保存几段原文片段，便于 Agent 做定性判断。这些片段属于个人内容，不要提交到公开仓库。
 
@@ -90,7 +90,7 @@ python scripts/style_profile.py --vault "D:/Obsidian/MyVault" \
 python scripts/style_profile.py --vault "D:/Obsidian/MyVault" --all --name vault
 ```
 
-默认输出到 `~/.note-curator/style-profiles/<name>/`：
+默认输出到 `~/.note-curator/style-profiles/<name>/`（未显式指定 `--name` 时，画像名自动带语言后缀，如 `04-AI-zh`）：
 
 ```text
 profile.json   # 机器可读统计（含 language 字段），style_check.py 使用
@@ -126,8 +126,8 @@ python scripts/style_check.py _note.md --profile "~/.note-curator/style-profiles
 输出结论分三档：
 
 - **基本一致**：没有明显统计偏差。
-- **轻微偏差**：有 1 个 major 或少量 minor；可以写入，建议顺手调整。
-- **明显偏差**：3 个以上 major；建议先按提示改句长、标点、连接词或排版，再重跑。
+- **轻微偏差**：1–2 个 major，或 minor ≥ 3；可以写入，建议顺手调整。
+- **明显偏差**：major ≥ 3；建议先按提示改句长、标点、连接词或排版，再重跑。
 
 `--json` 输出机器可读结果；`--strict` 在有 major 时退出码为 1，可用于脚本或 CI。
 

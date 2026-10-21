@@ -183,9 +183,9 @@ def call_api(base_url, api_key, model, system, user, timeout):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="生成草稿（模型适配器，B09-04）")
+    ap = argparse.ArgumentParser(description="生成草稿（模型适配器）")
     src = ap.add_mutually_exclusive_group(required=True)
-    src.add_argument("--source-doc", help="SourceDocument JSON（B08）")
+    src.add_argument("--source-doc", help="SourceDocument JSON")
     src.add_argument("--source-file", help="纯文本来源文件")
     src.add_argument("--source-stdin", action="store_true")
     ap.add_argument("--register", choices=REGISTERS, default="technical")
@@ -193,7 +193,7 @@ def main():
     ap.add_argument("--title", default="")
     ap.add_argument("--profile", help="profile.json（profile/prefs 层）")
     ap.add_argument("--layers", default="public,profile,prefs",
-                    help="上下文层：public,profile,prefs（B10 消融用）")
+                    help="上下文层：public,profile,prefs（消融用）")
     ap.add_argument("--out", required=True, help="草稿输出路径")
     ap.add_argument("--provider", choices=["mock", "api"], default="mock")
     ap.add_argument("--base-url", default=os.environ.get("NC_LLM_BASE_URL", ""))

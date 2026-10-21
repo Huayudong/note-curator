@@ -161,7 +161,7 @@ def check_document(table, text, source_rel):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="双链解析与验证（B07）")
+    ap = argparse.ArgumentParser(description="双链解析与验证")
     ap.add_argument("--vault", required=True)
     src = ap.add_mutually_exclusive_group(required=True)
     src.add_argument("--file", help="验证该笔记内的全部链接")

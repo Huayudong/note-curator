@@ -174,7 +174,7 @@ def subprocess_run(args):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="冻结评测执行器（B10）")
+    ap = argparse.ArgumentParser(description="冻结评测执行器")
     ap.add_argument("--provider", choices=["mock", "api"], default="mock")
     ap.add_argument("--layers", default="public,profile,prefs")
     ap.add_argument("--base-url", default=os.environ.get("NC_LLM_BASE_URL", ""))

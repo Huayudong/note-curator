@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-run_plugin_contract.py — B09 插件契约测试。
+run_plugin_contract.py — 插件契约测试。
 
 不启动 Obsidian 也能验证的插件闭环：
   1. main.js 语法（node --check；无 node 时显式跳过）

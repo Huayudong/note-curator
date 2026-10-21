@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """
-run_b11_tests.py — B11 稳定交付回归测试。
+run_stability_tests.py — 稳定交付回归测试。
 
 覆盖：
-  1. 写锁互斥：持锁期间另一进程 apply 被拒（B11-04）；释放后成功
+  1. 写锁互斥：持锁期间另一进程 apply 被拒；释放后成功
   2. 陈旧锁接管：超时残留锁可自动接管
-  3. 状态版本兼容矩阵：未来 schema 的计划被拒绝（B11-09）
-  4. 路径拷打（B11-11）：中文+空格目录、超长文件名、NFD 组合字符
+  3. 状态版本兼容矩阵：未来 schema 的计划被拒绝
+  4. 路径拷打：中文+空格目录、超长文件名、NFD 组合字符
      的写入/撤销/索引/检索
-  5. doctor 诊断输出（B11-10）
-  6. perf_bench 冒烟（B11-01/02）
+  5. doctor 诊断输出
+  6. perf_bench 冒烟
 
-用法：python tests/run_b11_tests.py
+用法：python tests/run_stability_tests.py
 退出码：0 全部通过；1 有失败。
 """
 
@@ -58,7 +58,7 @@ def main():
         import nc_core
         vault = td / "test vault 中文"
 
-        # ---- 1. 写锁互斥（B11-04）----
+        # ---- 1. 写锁互斥 ----
         content = td / "content.md"
         content.write_text("# 标题\n\n正文。", encoding="utf-8")
         vault.mkdir()
@@ -87,7 +87,7 @@ def main():
         check("stale lock taken over", got is not None)
         nc_core.release_lock(got)
 
-        # ---- 3. 未来 schema 拒绝（B11-09）----
+        # ---- 3. 未来 schema 拒绝 ----
         (vault / "编程" / "并发目标.md").unlink()
         r = run("write_note.py", ["new", "--vault", vault, "--dir", "编程",
                                   "--title", "schema目标", "--file", content,
@@ -104,7 +104,7 @@ def main():
         check("future schema no write",
               not (vault / "编程" / "schema目标.md").exists())
 
-        # ---- 4. 路径拷打（B11-11）----
+        # ---- 4. 路径拷打 ----
         torture_vault = td / "拷打 库"
         long_name = "镸" * 75 + "文件名"  # 234 UTF-8 bytes, valid on Linux and Windows
         torture_vault.mkdir(parents=True)
@@ -114,7 +114,7 @@ def main():
         check("torture long name apply", r.returncode == 0, r.stderr[-200:])
 
         # 超出 Linux 255 字节文件名上限的名：Linux 必须干净拒绝（不是崩溃），
-        # Windows（UTF-16 计数）合法可直接创建（B11-11 平台差异的如实呈现）
+        # Windows（UTF-16 计数）合法可直接创建（平台差异的如实呈现）
         huge_name = chr(38271) * 120 + chr(25991) + chr(20214) + chr(21517)
         r = run("write_note.py", ["new", "--vault", torture_vault,
                                   "--dir", "中文 目录/深 层", "--title", huge_name,
@@ -143,7 +143,7 @@ def main():
         undo_r = run("write_note.py", ["log", "--json"], home)
         check("log readable after torture", undo_r.returncode == 0)
 
-        # ---- 5. doctor（B11-10）----
+        # ---- 5. doctor ----
         r = run("doctor.py", ["--json"], home)
         d = json.loads(r.stdout)
         # 此前故意写入了 schema=99 的坏计划，doctor 报告问题属正确行为
@@ -151,7 +151,7 @@ def main():
               and "state" in d and len(d["packs"]) == 2
               and any("schema" in p for p in d["problems"]), str(d)[:200])
 
-        # ---- 6. perf_bench 冒烟（B11-01/02）----
+        # ---- 6. perf_bench 冒烟 ----
         r = run("perf_bench.py", ["--notes", "60", "--size", "500", "--json"], home)
         bench = json.loads(r.stdout)
         check("perf bench smoke", r.returncode == 0
@@ -163,7 +163,7 @@ def main():
     if FAILURES:
         print("FAILED: %d test(s): %s" % (len(FAILURES), ", ".join(FAILURES)))
         sys.exit(1)
-    print("All B11 stability tests passed.")
+    print("All stability tests passed.")
 
 
 if __name__ == "__main__":

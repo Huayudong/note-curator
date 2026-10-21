@@ -1,16 +1,16 @@
 "use strict";
 /*
- * note-curator — Obsidian 原生插件（B09 预览版）。
+ * note-curator — Obsidian 原生插件（预览版）。
  *
  * 与外部 Agent Skill 共用同一核心：所有能力通过调用
  * plugins/note-curator/skills/note-curator/scripts/ 下的 Python 脚本完成，
- * 走同一套 WritePlan 事务、画像、语言包与偏好状态（B09-11）。
+ * 走同一套 WritePlan 事务、画像、语言包与偏好状态。
  *
- * 安全约定（B09-09）：LLM API key 只存在本插件数据文件或进程环境变量，
+ * 安全约定：LLM API key 只存在本插件数据文件或进程环境变量，
  * 调用核心时通过 NC_LLM_API_KEY 环境变量传递，不写入 vault 内任何文件、
  * 不进入日志。建议用户优先配置环境变量。
  *
- * 保存事件（B09-08）：只把「用户改过的笔记路径」追加到待学习清单
+ * 保存事件：只把「用户改过的笔记路径」追加到待学习清单
  * （discovery），绝不自动学习；插件自身的写入会被过滤。
  */
 
@@ -494,7 +494,7 @@ class NoteCuratorPlugin extends Plugin {
   }
 
   onModify(file) {
-    // B09-08：只发现变化，过滤插件自身写入，绝不自动学习
+    // 只发现变化，过滤插件自身写入，绝不自动学习
     if (!(file instanceof TFile)) return;
     if (this.lastPluginWrite && file.path === this.lastPluginWrite) return;
     try {

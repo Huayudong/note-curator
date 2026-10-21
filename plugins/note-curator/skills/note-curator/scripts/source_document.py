@@ -388,7 +388,7 @@ def cmd_lookup(args):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="统一来源管线（B08）")
+    ap = argparse.ArgumentParser(description="统一来源管线")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     p1 = sub.add_parser("from-url", help="抓 URL -> SourceDocument")

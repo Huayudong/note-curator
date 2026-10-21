@@ -2,37 +2,28 @@
 
 # note-curator
 
-Turn links and rough drafts into structured Chinese notes that fit your Obsidian vault and match the style of your existing notes.
+Turn links and rough drafts into structured notes that fit your Obsidian vault and match the style of your existing notes. Chinese-first, with English support.
 
-note-curator is an open-source Agent Skill for Chinese note curation. It fetches an article or reads a draft, checks the vault for duplicates, merges into an existing note or creates a new one, adds Obsidian backlinks, and follows the formatting and voice of the target folder. It uses only Python's standard library and ships as a standalone skill plus thin plugins for ZCode, Claude Code, and Codex / ChatGPT.
+note-curator is an open-source Agent Skill for note curation: it fetches an article or reads a draft, checks the vault for duplicates, merges into an existing note or creates a new one, verifies facts and style before writing, and adds Obsidian backlinks where concepts appear. It uses only Python's standard library and ships as a standalone skill plus thin plugins for ZCode, Claude Code, and Codex / ChatGPT.
 
-## Features
+## Features and workflow
 
-- **Link or draft → note**: fetch a URL or read a local draft, then produce a structured Chinese note.
-- **Source integrity and honesty (B08)**: a unified SourceDocument pipeline — URL/file → structured segments (tables and code kept in order) → seven extraction statuses (truncated / login wall / dynamic page / short body / missing pagination / missing table / fetch failure); incomplete sources ask for more material instead of pretending to be read; source content is data, never executed; URL normalization + content fingerprints detect duplicates and updates.
-- **Two note types**: knowledge notes for concepts and explanations, experiment notes for setup, method, data, and conclusions.
-- **Vault-wide deduplication**: keyword pre-filter plus semantic judgment before writing; queries are matched within the same language by default, with light English stemming (caching/cache/caches share a root) and title weighting.
-- **Full-text search with evidence (B07)**: `index_vault.py` builds a chunked full-text index with incremental updates; `search_notes.py` returns candidates with evidence chunk and position — tail content of long notes is recallable. Cross-language hits come through concept bridges (flagged `cross_language`, never auto-merged).
-- **Link verification before write (B07)**: `link_resolver.py` resolves wiki links via path / basename disambiguation / aliases / heading anchors / block IDs; ambiguous links get a candidate list and broken links block the write, so every inserted link opens in Obsidian.
-- **Merge instead of duplicate**: append new knowledge, correct only clear errors, preview the diff, then write through a plan → apply → undo transaction.
-- **Write safety**: every write goes through a WritePlan with base-hash conflict checks, atomic replacement, controlled backups, path containment (no absolute paths, `..`, symlink escapes, Windows reserved names, or case-only collisions), an undo command, and a write log.
-- **Obsidian backlinks**: link concepts to existing notes with title-first matching and a confidence threshold; links live where the concept appears in the body — no "Related notes" list at the end.
-- **Fact-fidelity check (B04)**: before writing, the draft is checked against source-critical facts (numbers and units, dates, qualifiers, negations), plus a length budget (crossing the hard cap flags a split review) and a tail "Related notes" list violation detector; at most two revision rounds.
-- **Topic focus**: one note answers one question; longer side topics are deduplicated first and split into complete child notes when truly needed, linked from the body.
-- **Style-aware formatting**: mirror the target folder's frontmatter, heading levels, list markers, emphasis, and structural density.
-- **Local voice profile**: measure sentence length, punctuation, pronouns, particles, connectors, sentence openers, and rhetorical habits; the agent reads sample notes and completes a qualitative `voice.md`.
-- **Pre-write style check**: compare a draft with the profile and flag clear deviations.
-- **Bilingual profile isolation (B02)**: profiles live at `<folder>-<language>` with a composite key (user + vault + language + scope); Chinese and English samples in one folder never pollute each other, and code blocks, inline code, and long quoted foreign-language paragraphs are excluded from the statistics.
-- **Language decision**: output language = explicit request > target note language (merge) > config `output_language` > source primary language; all four source/output combinations are supported, and cross-language curation preserves facts, figures, and attribution while keeping terms, code, and quotes in the original.
-- **Migratable profiles**: legacy profiles are migrated into the new namespace with `migrate_profiles.py` (old folders kept; delete the new folder to roll back), and moved vaults can be re-linked.
-- **Repeated edits keep teaching**: learning identifies revisions by content hash, so the 2nd and 3rd edit of the same note refresh the statistics; re-learning unchanged content is a no-op.
-- **Two-step edit learning (B05)**: `learn_edit.py diff` classifies edit diffs (fact/content/structure/expression/formatting) and distills preference candidates from expression and formatting only; candidates take effect after explicit `confirm` (`reject`/`undo` supported), and fact fixes never masquerade as style preferences.
-- **Learning modes and preference management (B06)**: four modes — off / explicit / assisted / auto (auto needs the same candidate across 2+ independent notes before it takes effect); preferences can be disabled (reversible), forgotten (evidence deleted), exported/imported (no raw evidence included), and checked for conflicts; active preferences automatically feed the pre-write check within their language scope.
-- **Structured language packs (B03)**: first release under `language-packs/zh-CN` and `en` — 8 Chinese / 6 English rule categories (grouped AI-tell regexes with good/bad examples and exceptions), terminology first-mention tables, and example sentences with provenance (author/source/license). A missing or corrupt pack falls back to built-in word lists. User allow/deny phrases (config `style.allowed_phrases`/`banned_phrases`) override default rules.
-- **Small frontmatter contract**: `author`, `created`, and `tags` only; tags are capped at three and must describe the note.
-- **No third-party Python dependencies**: the standard library only; syntax supports Python 3.8+, and CI tests 3.10 / 3.13 on Windows and Linux (scripts force UTF-8 stdio, so the default Windows codepage works).
+```text
+input → fetch/read → vault-wide dedup → merge or create → fact & style checks → preview → apply / undo
+```
 
-## Obsidian native plugin (B09 preview)
+- **Link or draft → structured note**: URLs and local files go through one source pipeline (tables and code kept in order). Seven incomplete states — truncation, login wall, dynamic page, short body, missing pagination, missing table, fetch failure — are reported honestly, and you are asked for more material instead of being given a half-read summary. Source content is data, never executed. Knowledge and experiment templates included.
+- **Deduplication and merge**: keyword pre-filter plus semantic judgment, same-language by default (with light English stemming and title weighting). A hit appends new knowledge and fixes only clear errors after a diff preview; a miss creates one new note.
+- **Search and backlinks**: large vaults get a chunked full-text index with incremental updates and evidence positions, so tail content is recallable. Links are verified by path, alias, heading anchor and block ID before writing; broken links block the write. Links live where the concept appears in the body — no "Related notes" dump at the end.
+- **Fact fidelity**: numbers and units, dates, qualifiers, negations and attribution are checked before writing, along with a length budget (crossing the hard cap flags a split) and a tail link-list detector; at most two revision rounds.
+- **Voice and formatting**: sentence length, punctuation, pronouns, particles, connectors, sentence openers and paragraph rhythm are measured, plus the target folder's frontmatter, heading levels, lists and emphasis; clear deviations are flagged before writing. Everything written follows the human-voice guide (paragraph first, no AI tells, transitions rewritten for the target language). By default, Chinese and English profiles live under `<folder>-<language>`, so bilingual samples never pollute each other.
+- **Language packs**: `language-packs/zh-CN` and `en` ship AI-tell rules, terminology first-mention tables and sourced example sentences; user allow/deny phrases win, and a missing or corrupt pack falls back to built-in lists.
+- **Learning from your edits**: only expression and formatting preferences are distilled from your edits — fact fixes never become style preferences. By default candidates take effect only after confirmation; auto mode activates a candidate once the same signal appears in 2+ independent notes. Four modes (off / explicit / assisted / auto) plus disable, forget, export and import.
+- **Note conventions**: one note answers one question; independent side topics are deduplicated first and split into complete child notes when truly needed. Frontmatter holds only `author / created / tags` (at most three tags), and source traces go at the end of the body.
+- **Write safety**: create and merge share one plan → apply → undo transaction with base-hash checks; atomic replacement, controlled backups and a write log, with paths contained inside the vault (no absolute paths, `..` traversal or symlink escapes).
+- **Language and engineering**: output language = explicit request > target note > config > source language, preserving facts, figures and attribution across languages. Standard library only, Python 3.8+, one skill source for ZCode, Claude Code, Codex / ChatGPT and standalone use.
+
+## Obsidian native plugin (preview)
 
 `apps/obsidian-plugin/`: organize the current note (generate → preview → apply/undo),
 learn this edit (candidates require explicit confirmation), preference management and
@@ -43,7 +34,7 @@ var or the plugin's local data, never into notes or logs. See
 
 ## Install
 
-The plugin root is `plugins/note-curator/`; the skill itself is `plugins/note-curator/skills/note-curator/`. The same skill is used by every target.
+The agent plugin root is `plugins/note-curator/`; the skill itself is `plugins/note-curator/skills/note-curator/`. The same skill is used by every target.
 
 ### ZCode
 
@@ -100,7 +91,7 @@ python plugins/note-curator/skills/note-curator/scripts/init_setup.py \
   --vault "D:/Obsidian/MyVault" --author "Your Name"
 ```
 
-Configuration is written to `~/.note-curator/config.yaml`. If a legacy `config.yaml` exists in the skill directory, it is used instead. Plugin upgrades do not overwrite the user-level config.
+Configuration is written to `~/.note-curator/config.yaml`. If a legacy `config.yaml` exists in the skill directory, it is used instead. Upgrades do not overwrite the user-level config.
 
 Then ask:
 
@@ -114,24 +105,16 @@ Archive this draft: ...
 
 The skill shows a diff preview before writing; apply with `--apply`, then undo with `undo --run <run_id>` if needed.
 
-## How it works
-
-```text
-input → fetch/read → deduplicate → merge or create → style check → preview → apply → undoable
-```
-
-The merge path appends new knowledge and edits only clear errors. The create path learns the target folder's formatting and, when enabled, the local voice profile before drafting.
-
 ## Style learning
 
-Build a profile from recent notes in a folder. Chinese and English are measured separately: Chinese profiles count characters, English profiles count words. Language is auto-detected per corpus and can be forced with `--lang zh|en`; drafts are only compared against same-language profiles.
+Build a profile from recent notes in a folder. Chinese profiles count characters and English profiles count words; language is auto-detected per corpus and can be forced with `--lang zh|en`. Drafts are only compared against same-language profiles.
 
 ```bash
 python plugins/note-curator/skills/note-curator/scripts/style_profile.py \
   --vault "D:/Obsidian/MyVault" --dir "04 AI" --sample 20
 ```
 
-This writes `profile.json`, `profile.md`, and a `voice.md` template (in the profile's language) to `~/.note-curator/style-profiles/<folder>-<language>/` (a language suffix is appended by default since B02, keeping Chinese and English profiles separate). The agent reads the samples and fills `voice.md` with observations about tone, sentence rhythm, vocabulary, paragraph flow, and punctuation.
+This writes `profile.json`, `profile.md`, and a `voice.md` template (in the profile's language) to `~/.note-curator/style-profiles/<folder>-<language>/`. The agent reads the samples and fills `voice.md` with observations about tone, sentence rhythm, vocabulary, paragraph flow, and punctuation.
 
 Check a draft:
 
@@ -142,13 +125,22 @@ python plugins/note-curator/skills/note-curator/scripts/style_check.py \
 
 The result is consistent / minor deviation / major deviation. A language mismatch between draft and profile is reported instead of comparing. This is a statistical check, not a guarantee of identical voice. It works best with 10+ notes or 5,000+ units from the same folder.
 
-Chinese profiles get extra depth: 把/被 construction density, four-character phrases, colloquialisms, 顿号 and 《》 punctuation, Latin-mixing density, and AI-tell blacklist hits (aligned with the writing guide) that are flagged directly when they appear in a draft but not in the profile.
+Chinese profiles get extra depth: 把/被 construction density, four-character phrases, colloquialisms, 顿号 and 《》 punctuation, Latin-mixing density, and AI-tell hits that are flagged directly when they appear in a draft but not in the profile.
 
 The profile keeps learning: after you edit a note, ask the agent to "learn from this note" and `style_learn.py` folds your edited version back into the profile (sample-time rolling window, language-checked, with history). Only your edits are learned — never the plugin's own drafts.
 
 ## Configuration
 
 See [`config.example.yaml`](plugins/note-curator/skills/note-curator/config.example.yaml). The main options are `vault_path`, `taxonomy.rules`, `dedup`, `backlinks`, and `style`.
+
+More docs: [install](docs/install.md) · [learning](docs/learning.md) · [migration](docs/migration.md) · [privacy](docs/privacy.md) · [troubleshooting](docs/troubleshooting.md) · [release](docs/release.md).
+
+## Quality and reliability
+
+- **Evaluation**: the frozen eval set in `evals/` is locked by source hash — any change refuses to run. `run_eval.py` reports per-task fact retention, length and tail-list issues, with runs layered by public rules / +profile / +prefs and a `--sabotage` defect demo; `blind_compare.py` reports a directional preference rate with a Wilson interval, and `feedback.py` stays local by default.
+- **Stability**: a cross-process lock rejects concurrent writes to the same vault (stale locks are taken over after 5 minutes); plans, baselines, source documents, index, profiles and packs each carry a schema ceiling, so older versions refuse newer state with an upgrade hint; `doctor.py` shows versions, packs, active locks and recent writes (sanitized), and `--clean` prunes by retention; `perf_bench.py` reproduces index and search benchmarks.
+- **Language packs**: a per-file sha256 manifest is verified at load and tampered packs are refused; stable / experimental channels with a candidate → stable → deprecated lifecycle; `resource_pack.py --install/--rollback` swaps packs reversibly, and `pack_compare.py` compares old and new packs.
+- **Configuration hard gate**: in ZCode / Claude Code plugin form, every skill call is checked first; a missing config, dead vault path or empty author denies the call with a guided flow. Gate failures fail open so the plugin never wedges; other forms keep the SKILL.md check.
 
 ## Compatibility
 
@@ -161,68 +153,18 @@ See [`config.example.yaml`](plugins/note-curator/skills/note-curator/config.exam
 
 - Style learning is statistical plus a qualitative profile; it is not fine-tuning and does not clone an author.
 - Profiles are per folder and depend on the samples; topic differences can cause false positives.
-- The skill does not verify facts; it preserves the source's terms, data, and attribution.
+- It does not verify whether the source itself is true; before writing it only checks that key facts are preserved. Terms, data, and attribution still follow the source.
 - The first call is intentionally blocked until `vault_path` and `author` are configured.
 
 ## Releasing
 
-Update the version in the three plugin manifests and `.claude-plugin/marketplace.json`, refresh the marketplace in each client, and publish the new tag or commit.
+Update the version in the three plugin manifests and `.claude-plugin/marketplace.json`; the Obsidian plugin version in `apps/obsidian-plugin/manifest.json` is independent. Refresh the marketplace in each client, and publish the new tag or commit.
 
 ## Credits
 
 - [write-like-me](https://github.com/Hiro-Inagawa/write-like-me) (MIT) — voice profile and deterministic checker structure; this implementation rewrites the features and rules for Chinese notes.
 - [OpenAI Model guidance](https://developers.openai.com/api/docs/guides/latest-model) and [lieflat-less-ai-tone](https://github.com/larashero3-dotcom/lieflat-less-ai-tone) — writing-style guidance.
 - [KKKKhazix/human-writing](https://github.com/KKKKhazix/human-writing).
-
-## Evaluation discipline (B10)
-
-The frozen eval set lives in `evals/` (physically separated from dev fixtures; source
-hashes are locked and any change refuses to run). `run_eval.py` emits per-task
-fact-retention/length/tail-list reports with pack and context-layer versions
-(`--layers` for the public / +profile / +prefs ablation); `--sabotage` demonstrates
-defect capture. Blind voting: `blind_compare.py` (directional preference rate with a
-Wilson interval, ties reported separately, >60% is only an exploration threshold).
-User feedback: `feedback.py` stays local by default and can convert into pending eval
-tasks. No default strategy changed because of evaluation results.
-
-## Stability and diagnostics (B11)
-
-- **Cross-process write lock**: concurrent writes to the same vault are rejected (E-LOCK, exit 2); stale locks from crashed processes are taken over after 5 minutes; external editors are still guarded by base-hash checks.
-- **State schema compatibility matrix**: plans/baselines/index/profiles/packs each carry a schema ceiling — files written by a newer version are refused with an upgrade hint.
-- **doctor diagnostics**: `doctor.py [--json] [--clean]` — versions, pack status, data-dir usage, state schema audit, active locks, recent writes (sanitized: home shown as ~, never any note content); `--clean` prunes by retention defaults.
-- **Performance benchmark**: `perf_bench.py --notes N` is reproducible (full/incremental index, search, and scan timings plus memory peak on a synthetic vault).
-- **Path torture**: Chinese+space directories, extra-long filenames, and NFD combined characters are covered by write/undo/index/search regressions.
-
-## Language-pack maintenance (B12)
-
-- **Integrity manifest**: `language-packs/*/manifest.json` records a sha256 per
-  file; packs are verified at load and tampered packs are refused.
-  `--write-manifest` generates it before release.
-- **Channels and rule status**: stable (default, candidate rules inactive) /
-  experimental (`NC_PACK_CHANNEL=experimental`); lifecycle candidate → stable →
-  deprecated. See
-  [language-packs/CONTRIBUTING.md](plugins/note-curator/skills/note-curator/language-packs/CONTRIBUTING.md).
-- **Limits**: ≤200 rules, patterns ≤500 chars and must compile, ≤500 terms per
-  list, pack.json ≤2MB — over-limit packs are refused.
-- **Install and rollback**: `resource_pack.py --lang zh --install <dir>`
-  (verify + backup + swap), `--rollback` (reversible); `pack_compare.py`
-  diffs old/new packs on sample drafts.
-- **Docs**: [install](docs/install.md) · [learning](docs/learning.md) ·
-  [migration](docs/migration.md) · [privacy](docs/privacy.md) ·
-  [troubleshooting](docs/troubleshooting.md) · [release](docs/release.md).
-
-## Configuration hard gate (B13)
-
-- **Enforced setup in plugin form**: the ZCode / Claude Code plugin ships
-  `hooks/vault_gate.py` (a PreToolUse hook) that runs the same step-0 config
-  check before every skill invocation; a missing config, dead vault path or
-  empty author **denies the call** and returns the guided flow (ask for path
-  and author → `init_setup.py` → re-check). With no save location configured,
-  notes cannot be generated or written at all.
-- **Fail-open fuse**: any gate-side failure (Python not on PATH, script gone,
-  timeout) lets the call through instead of wedging the plugin; outside plugin
-  hosts, the SKILL.md step-0 check remains the guard.
-- See [install](docs/install.md), section "配置硬闸门".
 
 ## License
 

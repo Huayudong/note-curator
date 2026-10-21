@@ -10,7 +10,7 @@
 vault_path: ""
 
 # 界面与提示语言（zh / en）。旧 style.language 只代表画像语料语言，
-# 不再兼任「界面/输出语言」（B02-01：interface_language / output_language /
+# 不再兼任「界面/输出语言」（interface_language / output_language /
 # profile_language 三者分离）。
 interface_language: "zh"
 
@@ -82,22 +82,22 @@ style:
   profile_sample: 20
   # 画像语言：auto 自动检测（中文按字、英文按词），也可强制 zh / en。
   # 注意：强制 zh 表示「只把中文样本纳入画像并校验语言」，不是把英文
-  # 文本强行按中文统计（B02-04）。
+  # 文本强行按中文统计。
   language: auto
   # 输出语言：auto = 本次指定 > 目标笔记语言(合并) > 源文主语言；
   # zh / en 强制输出语言。跨语言整理保留事实、数字、限定与归属，
-  # 术语、代码、引语保留原文，叙述忠实翻译（B02-10）。
+  # 术语、代码、引语保留原文，叙述忠实翻译。
   output_language: auto
   # 画像存放目录；默认 ~/.note-curator/style-profiles。
   profile_dir: "~/.note-curator/style-profiles"
   # 写入前是否运行 style_check.py 做一次风格偏差检查。
   check_before_write: true
-  # 用户允许/禁用表达（B03-07）：style_check.py --allow/--ban 可从配置带入。
+  # 用户允许/禁用表达：style_check.py --allow/--ban 可从配置带入。
   # allowed_phrases 命中的提示会被忽略（个人口头禅、已确认的用法）；
   # banned_phrases 出现即提示。二者优先于语言包默认规则。
   allowed_phrases: []
   banned_phrases: []
-  # 改稿学习模式（B06-01）：off=不学习；explicit=用户点「学习这次修改」才学（默认）；
+  # 改稿学习模式：off=不学习；explicit=用户点「学习这次修改」才学（默认）；
   # assisted=汇总候选待批量确认；auto=满足证据门槛（≥2 篇独立笔记的表达类候选）
   # 才自动生效，事实类与冲突候选仍进待确认。
   learning_mode: explicit

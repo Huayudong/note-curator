@@ -19,18 +19,18 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       # 刻意不设置 PYTHONUTF8 / PYTHONIOENCODING：
-      # Windows 默认编码环境下脚本必须自我声明 UTF-8（B01-02 / G16）。
+      # Windows 默认编码环境下脚本必须自我声明 UTF-8。
       - name: 风格语言包回归
         run: python tests/run_style_tests.py
-      - name: 写入事务回归（B01）
+      - name: 写入事务回归
         run: python tests/run_write_tests.py
-      - name: 插件契约测试（B09）
+      - name: 插件契约测试
         run: python tests/run_plugin_contract.py
-      - name: 评测纪律测试（B10）
-        run: python tests/run_b10_tests.py
-      - name: 稳定性测试（B11）
-        run: python tests/run_b11_tests.py
-      - name: 语言包维护测试（B12）
-        run: python tests/run_b12_tests.py
-      - name: 配置硬闸门测试（B13）
-        run: python tests/run_b13_tests.py
+      - name: 评测纪律测试
+        run: python tests/run_eval_tests.py
+      - name: 稳定性测试
+        run: python tests/run_stability_tests.py
+      - name: 语言包维护测试
+        run: python tests/run_pack_tests.py
+      - name: 配置硬闸门测试
+        run: python tests/run_gate_tests.py

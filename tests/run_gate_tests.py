@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-run_b13_tests.py — B13 配置硬闸门（vault_gate）回归测试。
+run_gate_tests.py — 配置硬闸门（vault_gate）回归测试。
 
 覆盖：
   1. hooks.json 契约：PreToolUse 事件、Skill 匹配器、process 参数、脚本存在
@@ -9,7 +9,7 @@ run_b13_tests.py — B13 配置硬闸门（vault_gate）回归测试。
   4. fail-open：stdin 非法、check 脚本缺失（解释器 exit 2 不误判为未配置）
   5. 技能名带插件前缀（note-curator:note-curator）同样被拦截
 
-用法：python tests/run_b13_tests.py
+用法：python tests/run_gate_tests.py
 退出码：0 全部通过；1 有失败。
 """
 

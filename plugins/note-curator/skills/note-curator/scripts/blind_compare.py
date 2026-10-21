@@ -92,7 +92,7 @@ def analyze(counts):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="盲评计票（B10-07）")
+    ap = argparse.ArgumentParser(description="盲评计票")
     ap.add_argument("--votes", required=True)
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()

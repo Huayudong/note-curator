@@ -6,7 +6,7 @@
 | `E-TARGET-EXISTS` | 目标笔记已存在且内容不同 | 改用 merge 模式，或换标题 |
 | `E-CONFLICT-BASE`（退出码 3） | 预览后文件被外部修改 | 按提示重新预览；反向差异文件在 `writes/backup/` |
 | `E-LOCK`（退出码 2） | 另一进程持锁写入同一 vault | 稍后重试；崩溃残留锁 5 分钟自动过期 |
-| `E-SCHEMA-NEW` | 状态文件由更新版本的写入者创建 | 升级插件；不要手工改 schema 字段 |
+| `E-SCHEMA-NEW` | 状态文件由更新版本的写入者创建 | 升级插件或技能；不要手工改 schema 字段 |
 | `E-PLAN-REVERTED` | 计划已撤销 | 重新整理生成新计划 |
 | 语言包不可用 | pack.json 损坏 / 完整性不符 / 超限额 | `doctor.py` 查看详情；回退方法见下 |
 | 检查结论「明显偏差」 | 草稿与画像统计差距大 | 按 findings 调整；最多修订两轮，不循环重写 |
@@ -34,5 +34,4 @@ python scripts/write_note.py prune     # 同上（write_note 入口）
 ## 学习相关
 
 - 「学习无差异」：与基线内容一致，属正常幂等；
-- 「E-PLAN-REVERTED」：该计划已撤销，重新整理即可；
 - 反馈与待办任务：`feedback.py list`。

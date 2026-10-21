@@ -10,8 +10,9 @@
 ## Obsidian 原生插件（预览）
 
 把 `apps/obsidian-plugin/` 复制到 `<vault>/.obsidian/plugins/note-curator/`，
-在设置中启用，并填写核心脚本目录（`skills/note-curator/scripts` 绝对路径）。
-详见 [apps/obsidian-plugin/README.md](../apps/obsidian-plugin/README.md)。
+在设置中启用，并填写核心脚本目录（`skills/note-curator/scripts` 绝对路径）
+与 Python 命令（默认 `python`）。详见
+[apps/obsidian-plugin/README.md](../apps/obsidian-plugin/README.md)。
 
 ## 依赖与版本
 
@@ -19,7 +20,7 @@
 - 状态 schema 兼容矩阵见 `scripts/nc_core.py` 的 `SCHEMA_MAX`：由更新版本
   写入者创建的状态文件，旧版本会拒绝并提示升级，不会猜测。
 
-## 配置硬闸门（B13，仅插件形态）
+## 配置硬闸门（仅插件形态）
 
 ZCode / Claude Code 插件自带 `hooks/vault_gate.py`（PreToolUse 钩子）：
 
@@ -35,5 +36,5 @@ ZCode / Claude Code 插件自带 `hooks/vault_gate.py`（PreToolUse 钩子）：
 ## 升级与回退
 
 - 用户配置 `~/.note-curator/config.yaml` 与画像不会被升级覆盖。
-- 语言包升级：替换 `language-packs/<lang>/` 目录；回退见 `docs/troubleshooting.md`。
-- 遇到 `E-SCHEMA-NEW`：说明状态文件由更新版本写入，先升级插件。
+- 语言包升级：`resource_pack.py --lang zh --install <目录>`（英文包用 `--lang en`）；回退用 `--rollback`，手工回退见 `docs/troubleshooting.md`。
+- 遇到 `E-SCHEMA-NEW`：说明状态文件由更新版本写入，先升级插件或技能。

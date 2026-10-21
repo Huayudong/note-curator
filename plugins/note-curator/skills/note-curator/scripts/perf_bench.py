@@ -79,7 +79,7 @@ def os_remove(path):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="性能基准（B11-01/02）")
+    ap = argparse.ArgumentParser(description="性能基准")
     ap.add_argument("--notes", type=int, default=300)
     ap.add_argument("--size", type=int, default=800, help="每篇正文目标字符数")
     ap.add_argument("--out", help="报告 JSON 输出路径")

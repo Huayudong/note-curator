@@ -60,7 +60,7 @@ def findings_for(root, profile, draft):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="语言包新旧对比（B12-06）")
+    ap = argparse.ArgumentParser(description="语言包新旧对比")
     ap.add_argument("--old", required=True)
     ap.add_argument("--new", required=True)
     ap.add_argument("--profile", required=True, help="profile.json")

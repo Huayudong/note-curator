@@ -78,7 +78,7 @@ def _validate_examples(pack_dir, warnings):
             warnings.append("examples.jsonl 第 %d 行缺字段: %s"
                             % (lineno, ",".join(sorted(missing))))
         if not item.get("license") or not item.get("author"):
-            warnings.append("examples.jsonl 第 %d 行缺 author/license（B03-09 出处要求）"
+            warnings.append("examples.jsonl 第 %d 行缺 author/license（出处要求）"
                             % lineno)
 
 
@@ -140,7 +140,15 @@ def write_manifest(pack_dir):
             files[rel] = hash_text_file(f)
     manifest = _read_manifest(pack_dir) or {}
     manifest["files"] = files
-    manifest.setdefault("pack_version", "0.0.0")
+    try:
+        pack_meta = json.loads((pack_dir / "pack.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        pack_meta = {}
+    pack_version = pack_meta.get("pack_version") if isinstance(pack_meta, dict) else None
+    if pack_version:
+        manifest["pack_version"] = str(pack_version)
+    else:
+        manifest.setdefault("pack_version", "0.0.0")
     manifest.setdefault("channel", "stable")
     atomic_write_text(pack_dir / "manifest.json",
                       json.dumps(manifest, ensure_ascii=False,
@@ -208,13 +216,13 @@ def load_pack(lang, root=None):
         return None, ["语言包缺失: %s" % path]
     try:
         if path.stat().st_size > 2 * 1024 * 1024:
-            return None, ["pack.json 超过 2MB 体积上限（B12-03）"]
+            return None, ["pack.json 超过 2MB 体积上限"]
         pack = json.loads(path.read_text(encoding="utf-8"))
     except ValueError as exc:
         return None, ["语言包无法解析 %s: %s" % (path, exc)]
     ok_manifest, manifest_problems = verify_manifest(path.parent)
     if not ok_manifest:
-        return None, ["完整性校验未通过（B12-04）：%s" % "；".join(manifest_problems)]
+        return None, ["完整性校验未通过：%s" % "；".join(manifest_problems)]
     errors = validate_pack(pack, lang)
     if errors:
         return None, ["语言包校验未通过 %s：%s" % (path, "；".join(errors))]
@@ -312,11 +320,11 @@ def main():
     ap.add_argument("--pack-root", help="语言包根目录（默认 skill 内 language-packs；"
                                         "可用 NOTE_CURATOR_PACK_ROOT 覆盖）")
     ap.add_argument("--write-manifest", action="store_true",
-                    help="为该语言包目录生成完整性清单（发包前，B12-04）")
+                    help="为该语言包目录生成完整性清单（发包前）")
     ap.add_argument("--install", metavar="SRC",
                     help="安装来源目录的语言包（校验 + 备份 + 换装）")
     ap.add_argument("--rollback", action="store_true",
-                    help="回退到最近一次安装前的备份（B12-06）")
+                    help="回退到最近一次安装前的备份")
     args = ap.parse_args()
 
     if args.write_manifest:

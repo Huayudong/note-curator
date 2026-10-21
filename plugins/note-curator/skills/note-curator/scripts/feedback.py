@@ -118,7 +118,7 @@ def cmd_to_task(args):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="反馈与回归任务管道（B10）")
+    ap = argparse.ArgumentParser(description="反馈与回归任务管道")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     p1 = sub.add_parser("add", help="记录反馈")

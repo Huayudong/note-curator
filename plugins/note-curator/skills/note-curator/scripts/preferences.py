@@ -232,7 +232,7 @@ def cmd_conflicts(args):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="个人偏好管理（B06）")
+    ap = argparse.ArgumentParser(description="个人偏好管理")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     p1 = sub.add_parser("list", help="列出偏好")

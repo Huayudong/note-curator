@@ -1,7 +1,7 @@
-# 语言包贡献指南（B12-01）
+# 语言包贡献指南
 
 感谢为 note-curator 的中英文语言库贡献表达规则。语言包是「受限数据 +
-写作指导」，**不允许夹带任何可执行内容**（B12-03）。
+写作指导」，**不允许夹带任何可执行内容**。
 
 ## 规则字段
 
@@ -17,7 +17,7 @@
 | pattern | 仅 deterministic 规则：正则，≤500 字符 |
 | bad_example / better_example | 正反例；改写不得引入来源没有的事实 |
 | exceptions | 合理例外（引语、用户允许项等） |
-| status | stable / candidate / deprecated（默认 stable；新规则建议从 candidate 起，B12-05） |
+| status | stable / candidate / deprecated（默认 stable；新规则建议从 candidate 起） |
 
 ## 硬性限制（超出会被拒绝加载）
 
@@ -32,9 +32,11 @@
    再用 `style_check.py --json` 在正反例上验证命中/例外行为。
 3. 提交 PR：说明来源依据（语法书/语料/自查清单）、许可，以及至少一组
    正反例。无来源依据或纯个人偏好的规则请放 `candidate` 状态。
-4. 合入前由维护者运行 `--write-manifest` 生成完整性清单（B12-04）。
+4. 合入前由维护者运行
+   `python scripts/resource_pack.py --lang zh --write-manifest`（英文包用 `--lang en`）
+   生成完整性清单。
 
-## 渠道（B12-10）
+## 渠道
 
 - `stable`：默认渠道，candidate 规则不生效。
 - `experimental`：环境变量 `NC_PACK_CHANNEL=experimental`，加载 candidate

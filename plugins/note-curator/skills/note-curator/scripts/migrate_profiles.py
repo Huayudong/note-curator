@@ -147,7 +147,7 @@ def relink(old_path, new_path):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="旧画像迁移到 B02 命名空间")
+    ap = argparse.ArgumentParser(description="旧画像迁移到新命名空间")
     ap.add_argument("--profile-dir", help="画像根目录；默认 ~/.note-curator/style-profiles")
     ap.add_argument("--apply", action="store_true", help="执行迁移（默认只预览）")
     ap.add_argument("--relink", nargs=2, metavar=("OLD", "NEW"),

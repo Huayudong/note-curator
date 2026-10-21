@@ -48,7 +48,7 @@ def main():
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
-        # B05：write_note 会落计划/基线/备份，统一隔离到临时 home，不碰真实 ~/.note-curator
+        # write_note 会落计划/基线/备份，统一隔离到临时 home，不碰真实 ~/.note-curator
         os.environ["NOTE_CURATOR_HOME"] = str(tmp / "nchome")
         (tmp / "nchome").mkdir()
 
@@ -250,7 +250,7 @@ def main():
         check("zh query auto-filters to zh", all(h.get("language") != "en" for h in hits2),
               r.stdout[:200])
 
-        # 界面文案（--config 指向临时路径，与本机真实配置隔离，B01-01）
+        # 界面文案（--config 指向临时路径，与本机真实配置隔离）
         r = run([SCRIPTS / "check_setup.py", "--lang", "en", "--json",
                  "--config", tmp / "no-such-config.yaml"])
         check("check_setup en messages", "No note-curator configuration" in r.stdout,
@@ -260,23 +260,23 @@ def main():
         check("init_setup en messages", "[OK] Generated" in r.stdout and "Next:" in r.stdout,
               r.stdout[:300])
 
-        # --- 10. B01：配置 schema 校验（safe_yaml）---
+        # --- 10. 配置 schema 校验（safe_yaml）---
         (tmp / "v-en").mkdir(exist_ok=True)
-        cfg_b01 = tmp / "cfg-b01.yaml"
-        cfg_b01.write_text(
+        cfg_schema = tmp / "cfg-schema.yaml"
+        cfg_schema.write_text(
             'vault_path: "%s"\n'
             "frontmatter:\n"
             '  author: "T"\n'
             "some_unknown_key: 1\n" % (tmp / "v-en").as_posix(),
             encoding="utf-8")
-        r = run([SCRIPTS / "check_setup.py", "--json", "--config", cfg_b01])
+        r = run([SCRIPTS / "check_setup.py", "--json", "--config", cfg_schema])
         data = json.loads(r.stdout)
         check("check_setup ok with valid config",
               data.get("status") == "ok" and data.get("ok") is True, r.stdout[:300])
         check("check_setup reports unknown fields",
               data.get("unknown_fields") == ["some_unknown_key"], r.stdout[:300])
 
-        # --- 11. B02: bilingual profile isolation, forced-language filter, migration ---
+        # --- 11. bilingual profile isolation, forced-language filter, migration ---
         import shutil as _shutil2
 
         iso_root = tmp / "iso-profiles"
@@ -286,16 +286,16 @@ def main():
             _shutil2.copy(ZH_FIXTURE, iso_vault / "diary" / "note.md")
             r = run([SCRIPTS / "style_profile.py", "--vault", str(iso_vault),
                      "--dir", "diary", "--profile-dir", str(iso_root)])
-            check("b02 iso profile %s" % tag, r.returncode == 0, r.stderr[-300:])
+            check("iso profile %s" % tag, r.returncode == 0, r.stderr[-300:])
         iso_dirs = sorted(d.name for d in iso_root.iterdir())
-        check("b02 two isolated profiles", len(iso_dirs) == 2, str(iso_dirs))
-        check("b02 lang suffix naming",
+        check("two isolated profiles", len(iso_dirs) == 2, str(iso_dirs))
+        check("lang suffix naming",
               all(name.endswith("-zh") for name in iso_dirs), str(iso_dirs))
         ids = set()
         for name in iso_dirs:
             key = json.loads((iso_root / name / "profile.json").read_text(encoding="utf-8"))
             ids.add(key["profile_key"]["vault_id"])
-        check("b02 distinct vault ids", len(ids) == 2, str(ids))
+        check("distinct vault ids", len(ids) == 2, str(ids))
 
         mix_vault = tmp / "mix-vault"
         mix_vault.mkdir()
@@ -305,30 +305,30 @@ def main():
         r = run([SCRIPTS / "style_profile.py", "--vault", str(mix_vault),
                  "--files", "zh.md,en.md", "--profile-dir", str(mix_prof),
                  "--name", "auto-mix"])
-        check("b02 auto mix exit 0", r.returncode == 0, r.stderr[-300:])
+        check("auto mix exit 0", r.returncode == 0, r.stderr[-300:])
         auto = json.loads((mix_prof / "auto-mix" / "profile.json").read_text(encoding="utf-8"))
-        check("b02 auto majority zh excludes en",
+        check("auto majority zh excludes en",
               auto["language"] == "zh"
               and auto["language_scope"]["files_excluded"][0]["path"].endswith("en.md"),
               json.dumps(auto.get("language_scope"), ensure_ascii=False))
         r = run([SCRIPTS / "style_profile.py", "--vault", str(mix_vault),
                  "--files", "zh.md,en.md", "--profile-dir", str(mix_prof),
                  "--name", "forced-zh", "--lang", "zh"])
-        check("b02 forced zh exit 0", r.returncode == 0, r.stderr[-300:])
+        check("forced zh exit 0", r.returncode == 0, r.stderr[-300:])
         forced = json.loads((mix_prof / "forced-zh" / "profile.json").read_text(encoding="utf-8"))
-        check("b02 forced filters not force-counts",
+        check("forced filters not force-counts",
               forced["language"] == "zh" and forced["corpus"]["file_count"] == 1
               and forced["language_scope"]["forced"] is True,
               str(forced.get("language_scope")))
 
         r = run([SCRIPTS / "migrate_profiles.py", "--profile-dir", str(mix_prof),
                  "--json"])
-        check("b02 migrate keyed-only rc0", r.returncode == 0
+        check("migrate keyed-only rc0", r.returncode == 0
               and json.loads(r.stdout)["plans"][0]["status"] == "already-keyed",
               r.stdout[:200])
         r = run([SCRIPTS / "migrate_profiles.py", "--profile-dir",
                  str(tmp / "no-profiles"), "--json"])
-        check("b02 migrate empty rc2", r.returncode == 2, r.stdout[:200])
+        check("migrate empty rc2", r.returncode == 2, r.stdout[:200])
 
         old_prof = tmp / "legacy-profiles" / "legacy"
         old_prof.mkdir(parents=True)
@@ -342,35 +342,35 @@ def main():
         r = run([SCRIPTS / "migrate_profiles.py", "--profile-dir",
                  str(tmp / "legacy-profiles"), "--json"])
         plan = json.loads(r.stdout)
-        check("b02 migrate plans legacy",
+        check("migrate plans legacy",
               plan["plans"][0]["status"] == "planned"
               and plan["plans"][0]["to"] == "legacy-zh", r.stdout[:300])
         r = run([SCRIPTS / "migrate_profiles.py", "--profile-dir",
                  str(tmp / "legacy-profiles"), "--apply"])
-        check("b02 migrate apply rc0", r.returncode == 0, r.stderr[-200:])
+        check("migrate apply rc0", r.returncode == 0, r.stderr[-200:])
         migrated = json.loads((tmp / "legacy-profiles" / "legacy-zh" / "profile.json")
                               .read_text(encoding="utf-8"))
-        check("b02 migrated has key",
+        check("migrated has key",
               migrated["profile_key"]["language"] == "zh"
               and migrated.get("migrated_from") == "legacy",
               json.dumps(migrated.get("profile_key"), ensure_ascii=False))
         kept = (tmp / "legacy-profiles" / "legacy-zh" / "voice.md").read_text(encoding="utf-8")
-        check("b02 voice copied", "voice-keeper" in kept, kept[:100])
+        check("voice copied", "voice-keeper" in kept, kept[:100])
         still_old = json.loads((old_prof / "profile.json").read_text(encoding="utf-8"))
-        check("b02 old profile intact", "profile_key" not in still_old)
+        check("old profile intact", "profile_key" not in still_old)
 
-        # --- 12. B03: language packs, weak-hint downgrade, allow/ban ---
+        # --- 12. language packs, weak-hint downgrade, allow/ban ---
         r = run([SCRIPTS / "resource_pack.py", "--lang", "zh", "--json"])
         zp = json.loads(r.stdout)
-        check("b03 zh pack valid", r.returncode == 0 and zp["ok"] and zp["rules"] >= 8,
+        check("zh pack valid", r.returncode == 0 and zp["ok"] and zp["rules"] >= 8,
               r.stdout[:200])
         r = run([SCRIPTS / "resource_pack.py", "--lang", "en", "--json"])
         ep = json.loads(r.stdout)
-        check("b03 en pack valid", r.returncode == 0 and ep["ok"] and ep["rules"] >= 6,
+        check("en pack valid", r.returncode == 0 and ep["ok"] and ep["rules"] >= 6,
               r.stdout[:200])
         r = run([SCRIPTS / "resource_pack.py", "--lang", "zh", "--pack-root",
                  str(tmp / "no-such-pack-root"), "--json"])
-        check("b03 missing pack rc2", r.returncode == 2, r.stdout[:150])
+        check("missing pack rc2", r.returncode == 2, r.stdout[:150])
 
         weak_draft = tmp / "weak-draft.md"
         weak_draft.write_text(
@@ -380,7 +380,7 @@ def main():
                  "--json"])
         weak = json.loads(r.stdout)
         cons = [f["severity"] for f in weak["findings"] if f["category"] == "句式"]
-        check("b03 constructions weak-only", cons and all(s == "info" for s in cons),
+        check("constructions weak-only", cons and all(s == "info" for s in cons),
               str(cons))
 
         ab_draft = tmp / "ab-draft.md"
@@ -391,26 +391,26 @@ def main():
         ab = json.loads(r.stdout)
         left = [f for f in ab["findings"]
                 if "套话提示语" in f["message"] or "空洞强调" in f["message"]]
-        check("b03 allow suppresses", not left
+        check("allow suppresses", not left
               and ab.get("allowed_suppressed", 0) >= 2,
               str(ab.get("allowed_suppressed")))
         r = run([SCRIPTS / "style_check.py", ab_draft, "--profile", zh2_profile,
                  "--json", "--ban", "说白了"])
         ab2 = json.loads(r.stdout)
         banned = [f for f in ab2["findings"] if f.get("user_banned")]
-        check("b03 ban flags", len(banned) == 1, str(banned)[:150])
+        check("ban flags", len(banned) == 1, str(banned)[:150])
 
-        # --- 13. B04: fact retention, budget, tail-list violation ---
+        # --- 13. fact retention, budget, tail-list violation ---
         import shutil as _sh3
 
-        b04_dir = tmp / "b04"
-        b04_dir.mkdir()
-        source_md = b04_dir / "source.md"
+        fact_dir = tmp / "facts"
+        fact_dir.mkdir()
+        source_md = fact_dir / "source.md"
         source_md.write_text(
             "2026-09-30 发布的基准测试显示，p99 延迟从 800ms 降到 300ms，吞吐提升 45%。"
             "该结论仅在只读负载下成立，可能随写入比例变化。集群配置了 3 副本。"
             "官方文档明确表示不支持跨机房同步。", encoding="utf-8")
-        good = b04_dir / "good.md"
+        good = fact_dir / "good.md"
         good.write_text(
             "基准测试（2026-09-30）表明 p99 延迟从 800ms 降到 300ms，吞吐提升 45%。"
             "该结论仅在只读负载下成立，可能随写入比例变化。集群配置了 3 副本。"
@@ -418,253 +418,253 @@ def main():
         r = run([SCRIPTS / "fact_check.py", "--source", str(source_md),
                  "--draft", str(good), "--json"])
         rep = json.loads(r.stdout)
-        check("b04 full retention passes", r.returncode == 0
+        check("full retention passes", r.returncode == 0
               and rep["retention"]["missing"] == [],
               json.dumps(rep["retention"]["missing"], ensure_ascii=False))
-        bad = b04_dir / "bad.md"
+        bad = fact_dir / "bad.md"
         bad.write_text("性能大幅提升，支持跨机房同步。", encoding="utf-8")
         r = run([SCRIPTS / "fact_check.py", "--source", str(source_md),
                  "--draft", str(bad), "--json", "--strict"])
         rep2 = json.loads(r.stdout)
-        check("b04 missing facts rc1", r.returncode == 1
+        check("missing facts rc1", r.returncode == 1
               and {"number", "limit", "negation"} <= set(
                   m["kind"] for m in rep2["retention"]["missing"]),
               str(sorted(m["kind"] for m in rep2["retention"]["missing"])))
         nl2 = chr(10) + chr(10)
-        tail_md = b04_dir / "tail.md"
+        tail_md = fact_dir / "tail.md"
         tail_md.write_text(good.read_text(encoding="utf-8")
                            + nl2 + "## Related" + nl2 + "- [[cache]]" + chr(10),
                            encoding="utf-8")
         r = run([SCRIPTS / "fact_check.py", "--source", str(source_md),
                  "--draft", str(tail_md), "--json"])
         rep3 = json.loads(r.stdout)
-        check("b04 tail list violation rc2", r.returncode == 2
+        check("tail list violation rc2", r.returncode == 2
               and rep3["tail_violation"] is not None,
               str(rep3.get("tail_violation"))[:150])
         r = run([SCRIPTS / "fact_check.py", "--source", str(source_md),
                  "--draft", str(good), "--json", "--lang", "zh"])
         rep4 = json.loads(r.stdout)
-        check("b04 zh budget shape", rep4["budget"]["lang"] == "zh"
+        check("zh budget shape", rep4["budget"]["lang"] == "zh"
               and rep4["budget"]["unit"] == "字"
               and rep4["budget"]["within_soft"] is True,
               str(rep4["budget"])[:150])
 
-        # --- 14. B05: edit learning with candidates, confirm, undo ---
-        b05_dir = tmp / "b05"
-        b05_dir.mkdir()
-        b05_src = b05_dir / "draft.md"
-        b05_src.write_text("值得注意的是，缓存至关重要。综上所述，我们首先设置 TTL。"
+        # --- 14. edit learning with candidates, confirm, undo ---
+        learn_dir = tmp / "learning"
+        learn_dir.mkdir()
+        learn_src = learn_dir / "draft.md"
+        learn_src.write_text("值得注意的是，缓存至关重要。综上所述，我们首先设置 TTL。"
                            "其次是过期时间。最后是抖动。以上就是全部内容。", encoding="utf-8")
-        r = run([SCRIPTS / "write_note.py", "new", "--vault", str(b05_dir),
-                 "--dir", "notes", "--title", "learn-target", "--file", str(b05_src),
+        r = run([SCRIPTS / "write_note.py", "new", "--vault", str(learn_dir),
+                 "--dir", "notes", "--title", "learn-target", "--file", str(learn_src),
                  "--json", "--apply"])
         rid5 = json.loads(r.stdout)["run_id"]
-        b05_note = b05_dir / "notes" / "learn-target.md"
-        b05_note.write_text("缓存能减少查询，但数据更新后旧值仍可能被读取。"
+        learn_note = learn_dir / "notes" / "learn-target.md"
+        learn_note.write_text("缓存能减少查询，但数据更新后旧值仍可能被读取。"
                             "过期时间要设置，失效时间再叠加随机抖动。", encoding="utf-8")
         r = run([SCRIPTS / "learn_edit.py", "diff", "--profile", str(zh2_profile),
-                 "--note", str(b05_note), "--baseline-run", rid5, "--json"])
-        check("b05 diff rc0", r.returncode == 0, r.stderr[-250:])
+                 "--note", str(learn_note), "--baseline-run", rid5, "--json"])
+        check("diff rc0", r.returncode == 0, r.stderr[-250:])
         ev5 = json.loads(r.stdout)
-        check("b05 candidates extracted",
+        check("candidates extracted",
               any(c["type"] == "avoid_phrase" for c in ev5["candidates"]),
               json.dumps(ev5["candidates"], ensure_ascii=False)[:150])
         r = run([SCRIPTS / "learn_edit.py", "diff", "--profile", str(zh2_profile),
-                 "--note", str(b05_note), "--baseline-run", rid5])
-        check("b05 re-diff idempotent rc2", r.returncode == 2, "rc=%s" % r.returncode)
+                 "--note", str(learn_note), "--baseline-run", rid5])
+        check("edit learning re-diff idempotent rc2", r.returncode == 2, "rc=%s" % r.returncode)
         r = run([SCRIPTS / "learn_edit.py", "candidates",
                  "--profile", str(zh2_profile), "--json"])
         rows5 = json.loads(r.stdout)
         cid5 = rows5[0]["candidate_id"]
         r = run([SCRIPTS / "learn_edit.py", "confirm", "--profile", str(zh2_profile),
                  "--candidate", cid5])
-        check("b05 confirm rc0", r.returncode == 0, r.stderr[-150:])
+        check("confirm rc0", r.returncode == 0, r.stderr[-150:])
         r = run([SCRIPTS / "learn_edit.py", "reject", "--profile", str(zh2_profile),
                  "--candidate", cid5])
-        check("b05 reject confirmed refused rc2", r.returncode == 2,
+        check("reject confirmed refused rc2", r.returncode == 2,
               "rc=%s" % r.returncode)
         r = run([SCRIPTS / "learn_edit.py", "undo", "--profile", str(zh2_profile),
                  "--event", ev5["event_id"]])
-        check("b05 undo rc0", r.returncode == 0, r.stderr[-150:])
+        check("undo rc0", r.returncode == 0, r.stderr[-150:])
         r = run([SCRIPTS / "learn_edit.py", "undo", "--profile", str(zh2_profile),
                  "--event", ev5["event_id"]])
-        check("b05 re-undo idempotent rc2", r.returncode == 2, "rc=%s" % r.returncode)
+        check("re-undo idempotent rc2", r.returncode == 2, "rc=%s" % r.returncode)
 
-        # --- 15. B06: learning modes, preference state machine, apply ---
-        b06_src = tmp / "b06"
-        b06_src.mkdir()
+        # --- 15. learning modes, preference state machine, apply ---
+        modes_dir = tmp / "modes"
+        modes_dir.mkdir()
         d6 = tmp / "d6.md"
         d6.write_text("值得注意的是，缓存至关重要。综上所述，我们首先设置 TTL。", encoding="utf-8")
-        r = run([SCRIPTS / "write_note.py", "new", "--vault", str(b06_src),
+        r = run([SCRIPTS / "write_note.py", "new", "--vault", str(modes_dir),
                  "--dir", "notes", "--title", "n1", "--file", str(d6),
                  "--json", "--apply"])
         rid6 = json.loads(r.stdout)["run_id"]
-        n1 = b06_src / "notes" / "n1.md"
+        n1 = modes_dir / "notes" / "n1.md"
         n1.write_text("改好的正文，直接讲结论，没有套话。", encoding="utf-8")
         r = run([SCRIPTS / "learn_edit.py", "diff", "--profile", str(zh2_profile),
                  "--note", str(n1), "--baseline-run", rid6, "--json"])
-        check("b06 explicit default diff rc0", r.returncode == 0, r.stderr[-200:])
+        check("explicit default diff rc0", r.returncode == 0, r.stderr[-200:])
         r = run([SCRIPTS / "learn_edit.py", "diff", "--profile", str(zh2_profile),
                  "--note", str(n1), "--baseline-run", rid6, "--json"])
-        check("b06 re-diff idempotent rc2", r.returncode == 2, "rc=%s" % r.returncode)
+        check("mode learning re-diff idempotent rc2", r.returncode == 2, "rc=%s" % r.returncode)
 
         pf6 = json.loads(zh2_profile.read_text(encoding="utf-8"))
         pf6["learning_mode"] = "auto"
         zh2_profile.write_text(json.dumps(pf6, ensure_ascii=False), encoding="utf-8")
         d7 = tmp / "d7.md"
         d7.write_text("值得注意的是，延迟也很关键。总而言之，我们要加监控。", encoding="utf-8")
-        r = run([SCRIPTS / "write_note.py", "new", "--vault", str(b06_src),
+        r = run([SCRIPTS / "write_note.py", "new", "--vault", str(modes_dir),
                  "--dir", "notes", "--title", "n2", "--file", str(d7),
                  "--json", "--apply"])
         rid7 = json.loads(r.stdout)["run_id"]
-        n2 = b06_src / "notes" / "n2.md"
+        n2 = modes_dir / "notes" / "n2.md"
         n2.write_text("改好的正文，直接讲结论，没有套话。", encoding="utf-8")
         r = run([SCRIPTS / "learn_edit.py", "diff", "--profile", str(zh2_profile),
                  "--note", str(n2), "--baseline-run", rid7, "--json"])
-        check("b06 auto diff rc0", r.returncode == 0, r.stderr[-200:])
+        check("auto diff rc0", r.returncode == 0, r.stderr[-200:])
         pf6 = json.loads(zh2_profile.read_text(encoding="utf-8"))
         auto = [p for p in pf6.get("preferences", []) if p.get("auto_confirmed")]
-        check("b06 auto confirmed with evidence",
+        check("auto confirmed with evidence",
               len(auto) == 1 and auto[0]["evidence"] >= 2, str(pf6.get("preferences"))[:200])
 
         chk = tmp / "chk6.md"
         chk.write_text("值得注意的是，缓存依然至关重要。", encoding="utf-8")
         r = run([SCRIPTS / "style_check.py", chk, "--profile", zh2_profile, "--json"])
         hits = [f for f in json.loads(r.stdout)["findings"] if f.get("from_preference")]
-        check("b06 preference applies", len(hits) >= 1, str(hits)[:150])
+        check("preference applies", len(hits) >= 1, str(hits)[:150])
         pid6 = auto[0]["id"]
         r = run([SCRIPTS / "preferences.py", "disable", "--profile", zh2_profile,
                  "--pref", pid6, "--reason", "暂停"])
-        check("b06 disable rc0", r.returncode == 0, r.stderr[-150:])
+        check("disable rc0", r.returncode == 0, r.stderr[-150:])
         r = run([SCRIPTS / "style_check.py", chk, "--profile", zh2_profile, "--json"])
         hits2 = [f for f in json.loads(r.stdout)["findings"] if f.get("from_preference")]
-        check("b06 disabled silent", not hits2, str(hits2)[:150])
+        check("disabled silent", not hits2, str(hits2)[:150])
         r = run([SCRIPTS / "preferences.py", "forget", "--profile", zh2_profile,
                  "--pref", pid6])
-        check("b06 forget rc0", r.returncode == 0, r.stderr[-150:])
+        check("forget rc0", r.returncode == 0, r.stderr[-150:])
         pf6 = json.loads(zh2_profile.read_text(encoding="utf-8"))
-        check("b06 forgotten status",
+        check("forgotten status",
               pf6["preferences"][0]["status"] == "forgotten",
               str(pf6["preferences"][0]["status"]))
 
-        # --- 16. B07: chunked index, cross-language search, link resolver ---
-        b07_vault = tmp / "b07-vault"
-        (b07_vault / "biancheng").mkdir(parents=True)
-        (b07_vault / "renwen").mkdir()
+        # --- 16. chunked index, cross-language search, link resolver ---
+        index_vault = tmp / "index-vault"
+        (index_vault / "biancheng").mkdir(parents=True)
+        (index_vault / "renwen").mkdir()
         NL2 = chr(10) + chr(10)
         tail_section = (chr(10).join(["失效时间叠加随机抖动。"] * 30)
                         + chr(10) + chr(10) + "## 雪崩恢复演练手册"
                         + chr(10) + chr(10)
                         + "恢复演练分四步，先降级读库再重建缓存，最后复盘告警阈值。")
         zh_body = "# 缓存失效" + NL2 + NL2 + "概述穿透击穿雪崩。" + NL2 + tail_section
-        (b07_vault / "biancheng" / "缓存失效.md").write_text(zh_body, encoding="utf-8")
+        (index_vault / "biancheng" / "缓存失效.md").write_text(zh_body, encoding="utf-8")
         en_body = ("# Cache Invalidation" + NL2 + NL2
                    + "Cache invalidation is hard; avalanche recovery drills rebuild "
                      "the cache.")
-        (b07_vault / "biancheng" / "cache invalidation.md").write_text(en_body, encoding="utf-8")
+        (index_vault / "biancheng" / "cache invalidation.md").write_text(en_body, encoding="utf-8")
         note_body = ("# 完全不同的标题" + NL2 + NL2 + "## 雪崩小节" + NL2 + NL2
                      + "内容 ^blk1")
-        (b07_vault / "biancheng" / "笔记.md").write_text(note_body, encoding="utf-8")
-        (b07_vault / "renwen" / "笔记.md").write_text(
+        (index_vault / "biancheng" / "笔记.md").write_text(note_body, encoding="utf-8")
+        (index_vault / "renwen" / "笔记.md").write_text(
             "# 人文笔记" + NL2 + NL2 + "正文。", encoding="utf-8")
 
-        b07_index = tmp / "b07-index.json"
-        r = run([SCRIPTS / "index_vault.py", "--vault", str(b07_vault),
-                 "--out", str(b07_index), "--json"])
-        check("b07 index built", r.returncode == 0
+        index_file = tmp / "index-file.json"
+        r = run([SCRIPTS / "index_vault.py", "--vault", str(index_vault),
+                 "--out", str(index_file), "--json"])
+        check("index built", r.returncode == 0
               and json.loads(r.stdout)["files"] == 4, r.stdout[:150])
-        r = run([SCRIPTS / "index_vault.py", "--vault", str(b07_vault),
-                 "--out", str(b07_index), "--json", "--incremental"])
+        r = run([SCRIPTS / "index_vault.py", "--vault", str(index_vault),
+                 "--out", str(index_file), "--json", "--incremental"])
         stats = json.loads(r.stdout)
-        check("b07 incremental unchanged", stats["unchanged"] == 4
+        check("incremental unchanged", stats["unchanged"] == 4
               and stats["updated"] == 0, str(stats))
 
-        r = run([SCRIPTS / "search_notes.py", "--index", str(b07_index),
+        r = run([SCRIPTS / "search_notes.py", "--index", str(index_file),
                  "--query", "雪崩恢复演练 复盘告警", "--json"])
         hits = json.loads(r.stdout)
-        check("b07 tail content recall", bool(hits)
+        check("tail content recall", bool(hits)
               and hits[0]["path"].endswith("缓存失效.md")
               and hits[0]["evidence"]["pos_ratio"] > 0.4,
               json.dumps(hits, ensure_ascii=False)[:200])
-        r = run([SCRIPTS / "search_notes.py", "--index", str(b07_index),
+        r = run([SCRIPTS / "search_notes.py", "--index", str(index_file),
                  "--query", "缓存失效", "--json"])
         cross = [h for h in json.loads(r.stdout) if h.get("cross_language")]
-        check("b07 cross-language bridge", bool(cross)
+        check("cross-language bridge", bool(cross)
               and cross[0]["path"].endswith("cache invalidation.md"),
               json.dumps(cross, ensure_ascii=False)[:200])
 
-        r = run([SCRIPTS / "link_resolver.py", "--vault", str(b07_vault),
+        r = run([SCRIPTS / "link_resolver.py", "--vault", str(index_vault),
                  "--resolve", "[[笔记]]", "--json"])
         rep = json.loads(r.stdout)["links"][0]
-        check("b07 ambiguous candidates",
+        check("ambiguous candidates",
               rep["status"] == "ambiguous" and len(rep["candidates"]) == 2, str(rep)[:200])
-        r = run([SCRIPTS / "link_resolver.py", "--vault", str(b07_vault),
+        r = run([SCRIPTS / "link_resolver.py", "--vault", str(index_vault),
                  "--resolve", "[[biancheng/笔记#雪崩小节]]", "--json"])
-        check("b07 heading anchor resolved",
+        check("heading anchor resolved",
               json.loads(r.stdout)["links"][0]["status"] == "resolved")
-        draft7 = tmp / "b07-draft.md"
-        draft7.write_text("见 [[biancheng/笔记]] 与 [[人文侧页面]] 与 [[不存在的页]]。",
+        link_draft = tmp / "link-draft.md"
+        link_draft.write_text("见 [[biancheng/笔记]] 与 [[人文侧页面]] 与 [[不存在的页]]。",
                           encoding="utf-8")
-        r = run([SCRIPTS / "link_resolver.py", "--vault", str(b07_vault),
-                 "--check-draft", str(draft7), "--json"])
+        r = run([SCRIPTS / "link_resolver.py", "--vault", str(index_vault),
+                 "--check-draft", str(link_draft), "--json"])
         payload = json.loads(r.stdout)
-        check("b07 draft unresolved blocked", payload["unresolved"] >= 2
+        check("draft unresolved blocked", payload["unresolved"] >= 2
               and r.returncode == 1, str(payload)[:250])
 
-        # --- 17. B08: SourceDocument pipeline, statuses, dedup ---
+        # --- 17. SourceDocument pipeline, statuses, dedup ---
         fx = REPO_ROOT / "tests" / "fixtures" / "html"
         article = fx / "article.html"
         r = run([SCRIPTS / "source_document.py", "from-file", str(article)])
         doc = json.loads(r.stdout)
-        check("b08 from-file complete", r.returncode == 0
+        check("from-file complete", r.returncode == 0
               and doc["extraction"]["status"] == "complete", str(doc["extraction"]))
-        check("b08 table+code stats", doc["stats"]["tables"] == 1
+        check("table+code stats", doc["stats"]["tables"] == 1
               and doc["stats"]["code_blocks"] == 1, str(doc["stats"]))
-        doc8 = tmp / "b08-doc.json"
-        doc8.write_text(json.dumps(doc, ensure_ascii=False), encoding="utf-8")
-        r = run([SCRIPTS / "source_document.py", "check", str(doc8)])
-        check("b08 check complete rc0", r.returncode == 0, "rc=%s" % r.returncode)
+        source_doc = tmp / "source-doc.json"
+        source_doc.write_text(json.dumps(doc, ensure_ascii=False), encoding="utf-8")
+        r = run([SCRIPTS / "source_document.py", "check", str(source_doc)])
+        check("check complete rc0", r.returncode == 0, "rc=%s" % r.returncode)
 
         r = run([SCRIPTS / "source_document.py", "from-url", article.as_uri()])
         docu = json.loads(r.stdout)
-        check("b08 from-url file scheme", r.returncode == 0
+        check("from-url file scheme", r.returncode == 0
               and docu["kind"] == "url"
               and docu["source_normalized"].startswith("file:///"),
               str(docu.get("extraction")))
-        docu8 = tmp / "b08-doc-url.json"
-        docu8.write_text(json.dumps(docu, ensure_ascii=False), encoding="utf-8")
+        source_url_doc = tmp / "source-doc-url.json"
+        source_url_doc.write_text(json.dumps(docu, ensure_ascii=False), encoding="utf-8")
 
         r = run([SCRIPTS / "source_document.py", "from-file",
                  str(fx / "wall.html")])
         docw = json.loads(r.stdout)
-        check("b08 login wall failed", docw["extraction"]["status"] == "failed"
+        check("login wall failed", docw["extraction"]["status"] == "failed"
               and "login_wall" in docw["extraction"]["issues"],
               str(docw["extraction"]))
         r = run([SCRIPTS / "source_document.py", "from-file", str(article),
                  "--max-chars", "40"])
         doct = json.loads(r.stdout)
-        check("b08 truncated flagged",
+        check("truncated flagged",
               "truncated" in doct["extraction"]["issues"], str(doct["extraction"]))
 
         r = run([SCRIPTS / "source_document.py", "normalize-url",
                  "https://Example.com/a/?utm_source=x&id=3&spm=1#f"])
-        check("b08 normalize url", r.stdout.strip() == "https://example.com/a?id=3",
+        check("normalize url", r.stdout.strip() == "https://example.com/a?id=3",
               r.stdout.strip())
-        r = run([SCRIPTS / "source_document.py", "register", "--doc", str(docu8)])
-        check("b08 register rc0", r.returncode == 0, r.stdout[:60])
+        r = run([SCRIPTS / "source_document.py", "register", "--doc", str(source_url_doc)])
+        check("register rc0", r.returncode == 0, r.stdout[:60])
         r = run([SCRIPTS / "source_document.py", "lookup", "--url",
                  str(docu["source_normalized"])])
-        check("b08 lookup hit", r.returncode == 0
+        check("lookup hit", r.returncode == 0
               and "缓存实战笔记" in r.stdout, r.stdout[:100])
-        r = run([SCRIPTS / "source_document.py", "register", "--doc", str(docu8)])
-        check("b08 register same rc2", r.returncode == 2, "rc=%s" % r.returncode)
+        r = run([SCRIPTS / "source_document.py", "register", "--doc", str(source_url_doc)])
+        check("register same rc2", r.returncode == 2, "rc=%s" % r.returncode)
 
         r = run([SCRIPTS / "source_document.py", "from-file",
                  str(fx / "evil.html")])
         doce = json.loads(r.stdout)
-        check("b08 script stripped",
+        check("script stripped",
               "stealSecrets" not in json.dumps(doce, ensure_ascii=False))
-        check("b08 body text inert",
+        check("body text inert",
               any("读取密钥" in s["text"] for s in doce["segments"]))
 
     print("")

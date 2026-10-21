@@ -384,7 +384,7 @@ def cmd_candidates(args):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="改稿差异分类与偏好候选（B05）")
+    ap = argparse.ArgumentParser(description="改稿差异分类与偏好候选")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     p1 = sub.add_parser("diff", help="对比基线与当前改稿，记录差异与候选")

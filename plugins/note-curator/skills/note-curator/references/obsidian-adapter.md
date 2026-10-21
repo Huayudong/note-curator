@@ -1,7 +1,7 @@
 # Obsidian 适配层
 
 本文件隔离所有 Obsidian 专属约定。脚本通过 `config.yaml` 的 `vault_path` 与 frontmatter 字段工作，不硬编码下文规则；这里只是写给 LLM 的「生成笔记时必须遵守的规范」。
-将来若换笔记软件（Logseq/Notion 等），新增 `references/<软件>-adapter.md` 并在 SKILL.md 的「适配层选择」加一个分支即可，脚本主体不动。
+将来若换笔记软件（Logseq/Notion 等），新增 `references/<软件>-adapter.md`，在 SKILL.md 的参考文件清单中登记，并在配置项 `adapter` 中填写对应标识即可，脚本主体不动。
 
 ## 1. 文件与目录
 

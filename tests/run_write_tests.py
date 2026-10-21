@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-run_write_tests.py — B01 写入事务回归测试（预览/应用/撤销/冲突/幂等/编码/滚动窗口）。
+run_write_tests.py — 写入事务回归测试（预览/应用/撤销/冲突/幂等/编码/滚动窗口）。
 
 在临时目录里跑全部用例；通过 NOTE_CURATOR_HOME 把计划、日志、备份、基线
-全部隔离到临时目录，不读写真实用户数据（B01-01）。
+全部隔离到临时目录，不读写真实用户数据。
 子进程不设置 PYTHONUTF8 / PYTHONIOENCODING，验证脚本在 Windows 默认编码
-环境下自我声明 UTF-8（G16 / B01-02）。
+环境下自我声明 UTF-8。
 
 用法：python tests/run_write_tests.py
 退出码：0 全部通过；1 有失败。
@@ -74,7 +74,7 @@ def main():
         content_b = td / "content-b.md"
         content_b.write_text("# 另一篇\n\n不同的内容。\n", encoding="utf-8")
 
-        # ---- 1. new：默认仅预览（B01-03 / G08）----
+        # ---- 1. new：默认仅预览 ----
         r = run_write(["new", "--vault", vault, "--dir", "prog",
                        "--title", "缓存雪崩", "--file", content_a, "--json"], data)
         check("new preview exit 0", r.returncode == 0, r.stderr[-300:])
@@ -93,7 +93,7 @@ def main():
         check("apply content", target.exists()
               and target.read_text(encoding="utf-8") == content_a.read_text(encoding="utf-8"))
 
-        # ---- 3. 相同 run_id 重复 apply 幂等（验收 2）----
+        # ---- 3. 相同 run_id 重复 apply 幂等（验收 2） ----
         r = run_write(["apply", "--run", rid, "--json"], data)
         check("reapply exit 0", r.returncode == 0, r.stderr[-200:])
         check("reapply idempotent",
@@ -101,7 +101,7 @@ def main():
         check("reapply no duplication",
               target.read_text(encoding="utf-8").count("缓存雪崩") == 1)
 
-        # ---- 4. new 目标已存在：同内容幂等、不同内容拒绝（验收 1）----
+        # ---- 4. new 目标已存在：同内容幂等、不同内容拒绝（验收 1） ----
         r = run_write(["new", "--vault", vault, "--dir", "prog", "--title", "缓存雪崩",
                        "--file", content_a, "--json"], data)
         check("new same-content idempotent",
@@ -113,7 +113,7 @@ def main():
         check("new different not overwritten",
               target.read_text(encoding="utf-8").startswith("# 缓存雪崩"))
 
-        # ---- 5. 路径安全（B01-04）----
+        # ---- 5. 路径安全 ----
         (vault / "prog" / "Note.md").write_text("x", encoding="utf-8")
         r = run_write(["new", "--vault", vault, "--dir", "prog", "--title", "NOTE",
                        "--file", content_b, "--json"], data)
@@ -126,7 +126,7 @@ def main():
         check("reserved name sanitized", r.returncode == 0
               and (vault / "prog" / "CON 笔记.md").exists(), r.stderr[-200:])
 
-        # ---- 6. merge：预览后外部修改 → apply 冲突拒绝（验收 3）----
+        # ---- 6. merge：预览后外部修改 → apply 冲突拒绝（验收 3） ----
         old_note = vault / "prog" / "old.md"
         old_note.write_text("# 旧笔记\n\n原内容。\n", encoding="utf-8")
         patch = td / "patch.md"
@@ -149,7 +149,7 @@ def main():
         rev = data / "writes" / "backup" / ("%s.reverse.patch" % rid_m)
         check("merge reverse patch saved", rev.exists(), str(rev))
 
-        # ---- 7. merge 正常提交：写入 + 来源行 + 备份 → undo 恢复（验收 4/5）----
+        # ---- 7. merge 正常提交：写入 + 来源行 + 备份 → undo 恢复（验收 4/5） ----
         old_note.write_text("# 旧笔记\n\n原内容。\n", encoding="utf-8")
         r = run_write(["merge", "--vault", vault, "--target", "prog/old.md",
                        "--patch", patch, "--json", "--apply"], data)
@@ -169,7 +169,7 @@ def main():
         check("undo idempotent", r.returncode == 0
               and out_json(r).get("status") == "already-reverted", r.stdout[:200])
 
-        # ---- 8. 撤销前用户又改 → 拒绝恢复 + 反向差异（B01-07 / 验收 5）----
+        # ---- 8. 撤销前用户又改 → 拒绝恢复 + 反向差异（验收 5） ----
         r = run_write(["merge", "--vault", vault, "--target", "prog/old.md",
                        "--patch", patch, "--json", "--apply"], data)
         rid_m3 = out_json(r)["run_id"]
@@ -200,7 +200,7 @@ def main():
         check("new undo conflict preserved",
               n_target2.read_text(encoding="utf-8") == "用户编辑过")
 
-        # ---- 10. 生成基线 + 日志 + merge 重复 apply 幂等（B01-06/08）----
+        # ---- 10. 生成基线 + 日志 + merge 重复 apply 幂等 ----
         r = run_write(["merge", "--vault", vault, "--target", "prog/old.md",
                        "--patch", patch, "--json", "--apply"], data)
         check("merge apply 2 exit 0", r.returncode == 0, r.stderr[-300:])
@@ -221,13 +221,13 @@ def main():
         entries = out_json(r).get("entries", [])
         check("log entries recorded", len(entries) >= 5, len(entries))
 
-        # ---- 11. 默认编码环境下 UTF-8 输出（G16 / B01-02）----
+        # ---- 11. 默认编码环境下 UTF-8 输出 ----
         raw = run_write(["new", "--vault", vault, "--dir", "prog", "--title",
                          "编码检查", "--file", content_a], data)
         text = raw.stderr.decode("utf-8", errors="strict")
         check("utf8 stderr decodes", "编码检查" in text, text[:200])
 
-        # ---- 12. 滚动窗口按样本时间保留最新（B01-09 / G04）----
+        # ---- 12. 滚动窗口按样本时间保留最新 ----
         window_vault = td / "window-vault"
         window_vault.mkdir()
         shutil_src = ZH_FIXTURE.read_text(encoding="utf-8")

@@ -1,6 +1,6 @@
 # 迁移
 
-## 旧画像迁移（B02-08）
+## 旧画像迁移
 
 旧画像按目录名存放、未隔离 vault 与语言。迁移：
 
@@ -24,9 +24,9 @@ python scripts/migrate_profiles.py --relink "旧路径" "新路径"
 
 ## 换电脑
 
-1. 复制 `~/.note-curator/`（config 除外：重新 init 或编辑 vault_path）；
-2. 迁移画像（如上）；3. `preferences.py export/import` 可单独迁移偏好
-（不含原文证据）。
+1. 复制 `~/.note-curator/`（跳过 `config.yaml`，重新 init 或编辑 vault_path）；
+2. 迁移画像（如上）；
+3. `preferences.py export/import` 可单独迁移偏好（不含原文证据）。
 
 ## 兼容矩阵
 
