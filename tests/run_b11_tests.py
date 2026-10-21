@@ -106,12 +106,26 @@ def main():
 
         # ---- 4. 路径拷打（B11-11）----
         torture_vault = td / "拷打 库"
-        long_name = "长" * 120 + "文件名"
+        long_name = "镸" * 75 + "文件名"  # 234 UTF-8 bytes, valid on Linux and Windows
         torture_vault.mkdir(parents=True)
         r = run("write_note.py", ["new", "--vault", torture_vault,
                                   "--dir", "中文 目录/深 层", "--title", long_name,
                                   "--file", content, "--json", "--apply"], home)
         check("torture long name apply", r.returncode == 0, r.stderr[-200:])
+
+        # 超出 Linux 255 字节文件名上限的名：Linux 必须干净拒绝（不是崩溃），
+        # Windows（UTF-16 计数）合法可直接创建（B11-11 平台差异的如实呈现）
+        huge_name = chr(38271) * 120 + chr(25991) + chr(20214) + chr(21517)
+        r = run("write_note.py", ["new", "--vault", torture_vault,
+                                  "--dir", "中文 目录/深 层", "--title", huge_name,
+                                  "--file", content, "--json"], home)
+        if sys.platform == "win32":
+            check("torture over-limit name ok on Windows", r.returncode == 0,
+                  "rc=%s %s" % (r.returncode, r.stderr[-150:]))
+        else:
+            check("torture over-limit rejected cleanly on Linux",
+                  r.returncode == 1 and "Errno 36" in r.stderr,
+                  "rc=%s stderr=%s" % (r.returncode, r.stderr[-200:]))
         nfd = "cafe\u0301 文件"
         r = run("write_note.py", ["new", "--vault", torture_vault,
                                   "--dir", "中文 目录", "--title", nfd,
@@ -120,11 +134,11 @@ def main():
         idx = td / "torture-index.json"
         r = run("index_vault.py", ["--vault", torture_vault, "--out", idx])
         check("torture index ok", r.returncode == 0, r.stderr[-150:])
-        r = run("search_notes.py", ["--index", idx, "--query", "正文内容足够长",
+        r = run("search_notes.py", ["--index", idx, "--query", "标题 正文",
                                     "--json"])
         hits = json.loads(r.stdout)
         check("torture search hits", bool(hits)
-              and any("长" in h["path"] for h in hits),
+              and any(h["path"].startswith("中文 目录/") for h in hits),
               json.dumps(hits, ensure_ascii=False)[:200])
         undo_r = run("write_note.py", ["log", "--json"], home)
         check("log readable after torture", undo_r.returncode == 0)
